@@ -1,98 +1,232 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ImageBackground,
+  TextInput,
+  FlatList,
+  Image,
+  TouchableOpacity,
+  ScrollView
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+const categories = [
+  { id: 1, title: "Room", image: "https://picsum.photos/200/200" },
+  { id: 2, title: "Apartment", image: "https://picsum.photos/201/200" },
+  { id: 3, title: "Vehicle", image: "https://picsum.photos/202/200" },
+  { id: 4, title: "Professional", image: "https://picsum.photos/203/200" }
+];
+
+const gifts = [
+  {
+    id: 1,
+    title: "1 BHK Room in Baneshwor",
+    price: "NPR 9,999",
+    image: "https://picsum.photos/400/300"
+  },
+  {
+    id: 2,
+    title: "2 BHK Apartment in Thamel",
+    price: "NPR 15,000",
+    image: "https://picsum.photos/401/300"
+  }
+];
 
 export default function HomeScreen() {
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Hello Hey</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+    <View style={styles.container}>
+      <ScrollView>
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+        {/* HEADER */}
+        <ImageBackground
+          source={{ uri: "https://picsum.photos/600/400" }}
+          style={styles.header}
+        >
+          <View style={styles.headerTop}>
+            <Text style={styles.location}>📍 Kathmandu</Text>
+            <View style={styles.icons}>
+              <Ionicons name="heart-outline" size={22} color="white" />
+              <Ionicons name="notifications-outline" size={22} color="white" />
+            </View>
+          </View>
+
+          <Text style={styles.title}>
+            <Text style={{ color: "red" }}>One Nation</Text>, Global Connection
+          </Text>
+
+          <Text style={styles.subtitle}>
+            A platform that celebrates our heritage and meets every need.
+          </Text>
+
+          <View style={styles.searchBox}>
+            <Ionicons name="search" size={20} color="gray" />
+            <TextInput placeholder="Search for anything" />
+          </View>
+        </ImageBackground>
+
+        {/* CATEGORIES */}
+        <View style={styles.section}>
+          <View style={styles.rowBetween}>
+            <Text style={styles.sectionTitle}>Explore by Categories</Text>
+            <Text style={styles.link}>Explore all</Text>
+          </View>
+
+          <FlatList
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            data={categories}
+            keyExtractor={(item) => item.id.toString()}
+            renderItem={({ item }) => (
+              <View style={styles.categoryCard}>
+                <Image source={{ uri: item.image }} style={styles.categoryImg} />
+                <Text style={styles.categoryText}>{item.title}</Text>
+              </View>
+            )}
+          />
+        </View>
+
+        {/* GIFTS */}
+        <View style={styles.section}>
+          <View style={styles.rowBetween}>
+            <Text style={styles.sectionTitle}>Explore Rooms</Text>
+            <Text style={styles.link}>Explore all</Text>
+          </View>
+
+          {gifts.map((item) => (
+            <View key={item.id} style={styles.card}>
+              <Image source={{ uri: item.image }} style={styles.cardImg} />
+              <View style={{ padding: 10 }}>
+                <Text style={styles.cardTitle}>{item.title}</Text>
+                <Text style={styles.price}>{item.price}</Text>
+              </View>
+            </View>
+          ))}
+        </View>
+
+      </ScrollView>
+
+      {/* FLOAT BUTTON */}
+      <TouchableOpacity style={styles.fab}>
+        <Ionicons name="create-outline" size={24} color="white" />
+      </TouchableOpacity>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  container: { flex: 1, backgroundColor: "#f4f4f4" },
+
+  header: {
+    height: 260,
+    padding: 20,
+    justifyContent: "flex-end"
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+
+  headerTop: {
+    position: "absolute",
+    top: 40,
+    left: 20,
+    right: 20,
+    flexDirection: "row",
+    justifyContent: "space-between"
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+
+  location: { color: "white", fontSize: 16 },
+
+  icons: {
+    flexDirection: "row",
+    gap: 15
   },
+
+  title: {
+    color: "white",
+    fontSize: 22,
+    fontWeight: "bold"
+  },
+
+  subtitle: {
+    color: "white",
+    marginTop: 5
+  },
+
+  searchBox: {
+    marginTop: 15,
+    backgroundColor: "white",
+    borderRadius: 30,
+    paddingHorizontal: 15,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10
+  },
+
+  section: {
+    marginTop: 20,
+    paddingHorizontal: 15
+  },
+
+  rowBetween: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 10
+  },
+
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "bold"
+  },
+
+  link: {
+    color: "#2563eb"
+  },
+
+  categoryCard: {
+    marginRight: 15,
+    alignItems: "center"
+  },
+
+  categoryImg: {
+    width: 90,
+    height: 90,
+    borderRadius: 20
+  },
+
+  categoryText: {
+    marginTop: 5
+  },
+
+  card: {
+    backgroundColor: "white",
+    borderRadius: 15,
+    marginBottom: 15,
+    overflow: "hidden"
+  },
+
+  cardImg: {
+    width: "100%",
+    height: 160
+  },
+
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: "bold"
+  },
+
+  price: {
+    color: "#2563eb",
+    marginTop: 5
+  },
+
+  fab: {
+    position: "absolute",
+    bottom: 70,
+    alignSelf: "center",
+    backgroundColor: "#3b5998",
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: "center",
+    alignItems: "center",
+    elevation: 5
+  }
 });
