@@ -1,8 +1,14 @@
-import { View, Text, Image, StyleSheet, TouchableOpacity } from "react-native";
+import { useRouter } from "expo-router";
+import { Image, StyleSheet, Text, TouchableOpacity } from "react-native";
 
 export default function CategoryItem({ item }: any) {
+  const router = useRouter();
+
   return (
-    <TouchableOpacity style={styles.container}>
+    <TouchableOpacity 
+      style={styles.container}
+      onPress={() => router.push(`/service-list?categoryId=${item.id}&categoryName=${item.name}`)}
+    >
       <Image source={{ uri: item.image }} style={styles.image} />
       <Text style={styles.text} numberOfLines={1}>
         {item.name}

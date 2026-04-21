@@ -1,8 +1,8 @@
-import { View, Text, Image, StyleSheet } from "react-native";
+import { Image, StyleSheet, Text, View, ViewStyle } from "react-native";
 
-export default function RoomCard({ item }: any) {
+export default function RoomCard({ item, cardStyle }: { item: any; cardStyle?: ViewStyle }) {
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, cardStyle]}>
       <Image source={{ uri: item.image }} style={styles.image} />
 
       <View style={styles.info}>
