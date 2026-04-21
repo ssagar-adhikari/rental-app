@@ -192,7 +192,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    backgroundColor: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
     marginHorizontal: 20,
     marginTop: 15,
     borderRadius: 15,
