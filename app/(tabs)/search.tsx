@@ -17,6 +17,16 @@ import { rooms } from "../../data/mockData";
 const recentSearches = ["Apartment in Kathmandu", "Studio Room", "Luxury Flat", "Family House"];
 const popularSearches = ["Rooms under 15000", "Parking Available", "Near Bus Park", "Furnished Apartment"];
 
+const COLORS = {
+  primary: "#3F56A5",
+  background: "#F4F6FB",
+  surface: "#FFFFFF",
+  text: "#172033",
+  muted: "#6D7587",
+  border: "#E5E9F4",
+  green: "#1B9A5A",
+};
+
 export default function SearchScreen() {
   const router = useRouter();
   const [searchText, setSearchText] = useState("");
@@ -34,15 +44,27 @@ export default function SearchScreen() {
     <View style={styles.container}>
       {/* HEADER */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Search</Text>
-      </View>
+        <View style={styles.headerTop}>
+          <View>
+            <Text style={styles.locationLabel}>Search</Text>
+            <Text style={styles.headerTitle}>Find faster</Text>
+          </View>
 
-      {/* SEARCH BAR */}
-      <View style={styles.searchContainer}>
+          <TouchableOpacity activeOpacity={0.8} style={styles.headerIconBtn}>
+            <Ionicons name="sparkles-outline" size={21} color="white" />
+          </TouchableOpacity>
+        </View>
+
+        <Text style={styles.headerSubtitle}>
+          Search listings, explore categories, and revisit your recent rental ideas.
+        </Text>
+
+        {/* SEARCH BAR */}
         <View style={[styles.searchBox, isFocused && styles.searchBoxFocused]}>
-          <Ionicons name="search" size={20} color={isFocused ? "#3F56A5" : "gray"} />
+          <Ionicons name="search" size={20} color={isFocused ? COLORS.primary : COLORS.muted} />
           <TextInput 
             placeholder="Search for rooms, apartments..." 
+            placeholderTextColor="#98A1B3"
             style={styles.searchInput}
             value={searchText}
             onChangeText={setSearchText}
@@ -51,13 +73,13 @@ export default function SearchScreen() {
           />
           {searchText.length > 0 && (
             <TouchableOpacity onPress={() => setSearchText("")}>
-              <Ionicons name="close-circle" size={20} color="gray" />
+              <Ionicons name="close-circle" size={20} color={COLORS.muted} />
             </TouchableOpacity>
           )}
         </View>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* RECENT SEARCHES */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -73,7 +95,7 @@ export default function SearchScreen() {
                 style={styles.recentItem}
                 onPress={() => setSearchText(item)}
               >
-                <Ionicons name="time-outline" size={18} color="#7f8c8d" />
+                <Ionicons name="time-outline" size={18} color={COLORS.muted} />
                 <Text style={styles.recentText}>{item}</Text>
               </TouchableOpacity>
             ))}
@@ -90,7 +112,7 @@ export default function SearchScreen() {
                 style={styles.popularItem}
                 onPress={() => setSearchText(item)}
               >
-                <Ionicons name="trending-up" size={16} color="#3F56A5" />
+                <Ionicons name="trending-up" size={16} color={COLORS.primary} />
                 <Text style={styles.popularText}>{item}</Text>
               </TouchableOpacity>
             ))}
@@ -136,7 +158,7 @@ export default function SearchScreen() {
             horizontal
             showsHorizontalScrollIndicator={false}
             keyExtractor={(item) => item.id.toString()}
-            contentContainerStyle={{ paddingHorizontal: 15 }}
+            contentContainerStyle={styles.featuredListContent}
             renderItem={({ item }) => (
               <TouchableOpacity 
                 style={styles.featuredCard}
@@ -147,7 +169,7 @@ export default function SearchScreen() {
                   <Text style={styles.featuredTitle} numberOfLines={1}>{item.title}</Text>
                   <Text style={styles.featuredPrice}>{item.price}</Text>
                   <View style={styles.featuredLocationRow}>
-                    <Ionicons name="location" size={14} color="#7f8c8d" />
+                    <Ionicons name="location" size={14} color={COLORS.muted} />
                     <Text style={styles.featuredLocation}>{item.location}</Text>
                   </View>
                 </View>
@@ -175,7 +197,7 @@ export default function SearchScreen() {
                 <Text style={styles.nearbyTitle} numberOfLines={1}>{item.title}</Text>
                 <Text style={styles.nearbyPrice}>{item.price}</Text>
                 <View style={styles.nearbyLocationRow}>
-                  <Ionicons name="location" size={14} color="#3F56A5" />
+                <Ionicons name="location" size={14} color={COLORS.primary} />
                   <Text style={styles.nearbyLocation}>{item.location}</Text>
                 </View>
               </View>
@@ -193,45 +215,78 @@ export default function SearchScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: COLORS.background,
   },
   header: {
-    backgroundColor: "#3F56A5",
+    backgroundColor: COLORS.primary,
     paddingTop: 45,
     paddingHorizontal: 20,
-    paddingBottom: 15,
+    paddingBottom: 24,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+  },
+  headerTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  locationLabel: {
+    color: "rgba(255,255,255,0.72)",
+    fontSize: 13,
+    fontWeight: "700",
+    marginBottom: 4,
   },
   headerTitle: {
     color: "white",
-    fontSize: 24,
-    fontWeight: "bold",
+    fontSize: 26,
+    fontWeight: "900",
   },
-  searchContainer: {
-    backgroundColor: "#3F56A5",
-    paddingHorizontal: 20,
-    paddingBottom: 20,
+  headerIconBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: "rgba(255,255,255,0.14)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  headerSubtitle: {
+    color: "rgba(255,255,255,0.82)",
+    fontSize: 14,
+    fontWeight: "500",
+    lineHeight: 21,
+    marginTop: 12,
   },
   searchBox: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "white",
-    borderRadius: 12,
+    backgroundColor: COLORS.surface,
+    borderRadius: 16,
     paddingHorizontal: 15,
-    height: 50,
+    height: 54,
+    marginTop: 20,
+    shadowColor: "#172554",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.16,
+    shadowRadius: 18,
+    elevation: 7,
   },
   searchBoxFocused: {
-    borderWidth: 2,
-    borderColor: "#fff",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.85)",
   },
   searchInput: {
     flex: 1,
     marginLeft: 10,
     fontSize: 16,
-    color: "#2c3e50",
+    color: COLORS.text,
   },
   section: {
-    marginTop: 20,
+    marginTop: 24,
     paddingHorizontal: 20,
+  },
+  scrollView: {
+    flex: 1,
+    backgroundColor: COLORS.background,
   },
   sectionHeader: {
     flexDirection: "row",
@@ -240,18 +295,19 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#2c3e50",
+    fontSize: 21,
+    fontWeight: "900",
+    color: COLORS.text,
   },
   clearText: {
-    color: "#3F56A5",
-    fontSize: 14,
+    color: COLORS.primary,
+    fontSize: 13,
+    fontWeight: "900",
   },
   seeAllText: {
-    color: "#3F56A5",
-    fontSize: 14,
-    fontWeight: "600",
+    color: COLORS.primary,
+    fontSize: 13,
+    fontWeight: "900",
   },
   recentList: {
     flexDirection: "row",
@@ -261,15 +317,18 @@ const styles = StyleSheet.create({
   recentItem: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "white",
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.border,
     paddingHorizontal: 15,
     paddingVertical: 10,
-    borderRadius: 20,
+    borderRadius: 16,
     gap: 8,
   },
   recentText: {
-    color: "#7f8c8d",
+    color: COLORS.muted,
     fontSize: 14,
+    fontWeight: "700",
   },
   popularList: {
     flexDirection: "row",
@@ -279,16 +338,18 @@ const styles = StyleSheet.create({
   popularItem: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#e8f4fd",
+    backgroundColor: "#EEF2FF",
+    borderWidth: 1,
+    borderColor: "#DDE4FF",
     paddingHorizontal: 15,
     paddingVertical: 10,
-    borderRadius: 20,
+    borderRadius: 16,
     gap: 6,
   },
   popularText: {
-    color: "#3F56A5",
+    color: COLORS.primary,
     fontSize: 14,
-    fontWeight: "500",
+    fontWeight: "800",
   },
   categoriesContainer: {
     paddingRight: 20,
@@ -296,12 +357,17 @@ const styles = StyleSheet.create({
   },
   categoryCard: {
     alignItems: "center",
-    width: 80,
+    width: 96,
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 18,
+    padding: 10,
   },
   categoryImageContainer: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
+    width: 64,
+    height: 64,
+    borderRadius: 18,
     overflow: "hidden",
     marginBottom: 8,
   },
@@ -311,16 +377,25 @@ const styles = StyleSheet.create({
   },
   categoryName: {
     fontSize: 13,
-    color: "#2c3e50",
-    fontWeight: "500",
+    color: COLORS.text,
+    fontWeight: "800",
+  },
+  featuredListContent: {
+    paddingRight: 20,
+    gap: 16,
   },
   featuredCard: {
     width: 200,
-    backgroundColor: "white",
-    borderRadius: 15,
-    marginRight: 15,
+    backgroundColor: COLORS.surface,
+    borderRadius: 18,
     overflow: "hidden",
-    elevation: 3,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    shadowColor: "#22315F",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.1,
+    shadowRadius: 16,
+    elevation: 4,
   },
   featuredImage: {
     width: "100%",
@@ -331,13 +406,13 @@ const styles = StyleSheet.create({
   },
   featuredTitle: {
     fontSize: 15,
-    fontWeight: "600",
-    color: "#2c3e50",
+    fontWeight: "900",
+    color: COLORS.text,
   },
   featuredPrice: {
     fontSize: 14,
-    fontWeight: "600",
-    color: "#3F56A5",
+    fontWeight: "900",
+    color: COLORS.primary,
     marginTop: 4,
   },
   featuredLocationRow: {
@@ -347,16 +422,23 @@ const styles = StyleSheet.create({
   },
   featuredLocation: {
     fontSize: 12,
-    color: "#7f8c8d",
+    color: COLORS.muted,
     marginLeft: 4,
+    fontWeight: "700",
   },
   nearbyCard: {
     flexDirection: "row",
-    backgroundColor: "white",
-    borderRadius: 15,
+    backgroundColor: COLORS.surface,
+    borderRadius: 18,
     marginBottom: 12,
     overflow: "hidden",
-    elevation: 2,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    shadowColor: "#22315F",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 14,
+    elevation: 3,
   },
   nearbyImage: {
     width: 100,
@@ -369,13 +451,13 @@ const styles = StyleSheet.create({
   },
   nearbyTitle: {
     fontSize: 16,
-    fontWeight: "600",
-    color: "#2c3e50",
+    fontWeight: "900",
+    color: COLORS.text,
   },
   nearbyPrice: {
     fontSize: 15,
-    fontWeight: "600",
-    color: "#3F56A5",
+    fontWeight: "900",
+    color: COLORS.primary,
     marginTop: 4,
   },
   nearbyLocationRow: {
@@ -385,8 +467,9 @@ const styles = StyleSheet.create({
   },
   nearbyLocation: {
     fontSize: 13,
-    color: "#7f8c8d",
+    color: COLORS.muted,
     marginLeft: 4,
+    fontWeight: "700",
   },
   heartBtn: {
     justifyContent: "center",

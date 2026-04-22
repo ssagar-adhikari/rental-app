@@ -16,6 +16,16 @@ import { rooms } from "../data/mockData";
 
 const { width: screenWidth } = Dimensions.get("window");
 
+const COLORS = {
+  primary: "#3F56A5",
+  background: "#F4F6FB",
+  surface: "#FFFFFF",
+  text: "#172033",
+  muted: "#6D7587",
+  border: "#E5E9F4",
+  green: "#1B9A5A",
+};
+
 // Mock images for carousel
 const serviceImages = [
   "https://picsum.photos/800/600?random=1",
@@ -66,6 +76,8 @@ export default function ServiceDetailScreen() {
             setCurrentIndex(index);
           }}
         />
+
+        <View style={styles.heroShade} />
         
         {/* IMAGE OVERLAY BUTTONS */}
         <TouchableOpacity 
@@ -117,21 +129,33 @@ export default function ServiceDetailScreen() {
             {currentIndex + 1} / {serviceImages.length}
           </Text>
         </View>
+
+        <View style={styles.heroDetails}>
+          <View style={styles.heroTitleRow}>
+            <View style={styles.heroTitleText}>
+              <Text style={styles.heroTitle} numberOfLines={2}>{service.title}</Text>
+              <View style={styles.heroLocationRow}>
+                <Ionicons name="location" size={16} color="rgba(255,255,255,0.86)" />
+                <Text style={styles.heroLocationText} numberOfLines={1}>{service.location}</Text>
+              </View>
+            </View>
+            <View style={styles.heroRatingBadge}>
+              <Ionicons name="star" size={14} color="#F59E0B" />
+              <Text style={styles.heroRatingText}>4.8</Text>
+            </View>
+          </View>
+
+          <Text style={styles.heroPrice}>{service.price}</Text>
+
+        </View>
+
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* TITLE & PRICE */}
-        <View style={styles.titleSection}>
-          <Text style={styles.title}>{service.title}</Text>
-          <Text style={styles.price}>{service.price}</Text>
-        </View>
-
-        {/* LOCATION */}
-        <View style={styles.locationRow}>
-          <Ionicons name="location" size={18} color="#3F56A5" />
-          <Text style={styles.locationText}>{service.location}</Text>
-        </View>
-
+      <ScrollView
+        style={styles.content}
+        contentContainerStyle={styles.contentContainer}
+        showsVerticalScrollIndicator={false}
+      >
         {/* DESCRIPTION */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Description</Text>
@@ -149,7 +173,7 @@ export default function ServiceDetailScreen() {
           <View style={styles.amenitiesGrid}>
             {["WiFi", "Parking", "Kitchen", "AC", "Water", "Electricity"].map((amenity, index) => (
               <View key={index} style={styles.amenityItem}>
-                <Ionicons name="checkmark-circle" size={20} color="#27ae60" />
+                <Ionicons name="checkmark-circle" size={20} color={COLORS.green} />
                 <Text style={styles.amenityText}>{amenity}</Text>
               </View>
             ))}
@@ -160,11 +184,11 @@ export default function ServiceDetailScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Contact Information</Text>
           <View style={styles.contactRow}>
-            <Ionicons name="call-outline" size={20} color="#3F56A5" />
+            <Ionicons name="call-outline" size={20} color={COLORS.primary} />
             <Text style={styles.contactText}>+977 9800000000</Text>
           </View>
           <View style={styles.contactRow}>
-            <Ionicons name="mail-outline" size={20} color="#3F56A5" />
+            <Ionicons name="mail-outline" size={20} color={COLORS.primary} />
             <Text style={styles.contactText}>contact@example.com</Text>
           </View>
         </View>
@@ -197,7 +221,7 @@ export default function ServiceDetailScreen() {
             {service.location}, Kathmandu, Nepal
           </Text>
           <TouchableOpacity style={styles.directionsBtn}>
-            <Ionicons name="navigate" size={18} color="#3F56A5" />
+            <Ionicons name="navigate" size={18} color={COLORS.primary} />
             <Text style={styles.directionsBtnText}>Get Directions</Text>
           </TouchableOpacity>
         </View>
@@ -209,7 +233,7 @@ export default function ServiceDetailScreen() {
       {/* BOTTOM ACTION BUTTON */}
       <View style={styles.bottomBar}>
         <TouchableOpacity style={styles.messageBtn}>
-          <Ionicons name="chatbubble-outline" size={20} color="#3F56A5" />
+          <Ionicons name="chatbubble-outline" size={20} color={COLORS.primary} />
           <Text style={styles.messageBtnText}>Message</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.bookBtn}>
@@ -223,39 +247,55 @@ export default function ServiceDetailScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: COLORS.background,
   },
   carouselContainer: {
     position: "relative",
+    backgroundColor: "#111827",
+    marginBottom: 0,
   },
   imageSlide: {
     width: screenWidth,
-    height: 350,
+    height: 540,
   },
   sliderImage: {
     width: "100%",
     height: "100%",
     resizeMode: "cover",
   },
+  heroShade: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: "46%",
+    backgroundColor: "rgba(15,23,42,0.38)",
+  },
   backBtn: {
     position: "absolute",
     top: 45,
     left: 15,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    borderRadius: 25,
-    padding: 10,
+    backgroundColor: "rgba(17,24,39,0.46)",
+    borderRadius: 22,
+    width: 44,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
   },
   favoriteBtn: {
     position: "absolute",
     top: 45,
     right: 15,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    borderRadius: 25,
-    padding: 10,
+    backgroundColor: "rgba(17,24,39,0.46)",
+    borderRadius: 22,
+    width: 44,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
   },
   pagination: {
     position: "absolute",
-    bottom: 60,
+    bottom: 156,
     flexDirection: "row",
     alignSelf: "center",
   },
@@ -268,9 +308,9 @@ const styles = StyleSheet.create({
   },
   imageCounter: {
     position: "absolute",
-    bottom: 15,
+    top: 54,
     right: 15,
-    backgroundColor: "rgba(0,0,0,0.6)",
+    backgroundColor: "rgba(17,24,39,0.62)",
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 15,
@@ -280,77 +320,138 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
   },
-  content: {
+  heroDetails: {
+    position: "absolute",
+    left: 20,
+    right: 20,
+    bottom: 40,
+  },
+  heroTitleRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 14,
+  },
+  heroTitleText: {
     flex: 1,
-    paddingHorizontal: 20,
+    minWidth: 0,
   },
-  titleSection: {
-    marginTop: 20,
+  heroTitle: {
+    color: "white",
+    fontSize: 31,
+    fontWeight: "900",
+    lineHeight: 36,
   },
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#2c3e50",
-  },
-  price: {
-    fontSize: 22,
-    fontWeight: "600",
-    color: "#3F56A5",
-    marginTop: 5,
-  },
-  locationRow: {
+  heroLocationRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 10,
+    gap: 5,
+    marginTop: 8,
   },
-  locationText: {
-    fontSize: 16,
-    color: "#7f8c8d",
-    marginLeft: 5,
+  heroLocationText: {
+    flex: 1,
+    color: "rgba(255,255,255,0.86)",
+    fontSize: 15,
+    fontWeight: "800",
+  },
+  heroRatingBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "rgba(255,255,255,0.94)",
+    borderRadius: 18,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+  heroRatingText: {
+    color: COLORS.text,
+    fontSize: 13,
+    fontWeight: "900",
+  },
+  heroPrice: {
+    color: "white",
+    fontSize: 22,
+    fontWeight: "900",
+    marginTop: 12,
+  },
+  content: {
+    flex: 1,
+  },
+  contentContainer: {
+    paddingHorizontal: 20,
+    paddingTop: 18,
+    paddingBottom: 120,
   },
   section: {
-    marginTop: 25,
+    marginTop: 16,
+    backgroundColor: COLORS.surface,
+    borderRadius: 18,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    shadowColor: "#22315F",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 2,
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: "600",
-    color: "#2c3e50",
+    fontWeight: "900",
+    color: COLORS.text,
     marginBottom: 10,
   },
   description: {
     fontSize: 15,
-    color: "#7f8c8d",
+    color: COLORS.muted,
     lineHeight: 22,
+    fontWeight: "500",
   },
   amenitiesGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 15,
+    gap: 12,
   },
   amenityItem: {
     flexDirection: "row",
     alignItems: "center",
-    width: "45%",
+    width: "47%",
+    backgroundColor: "#F7F9FD",
+    borderWidth: 1,
+    borderColor: "#EEF1F7",
+    borderRadius: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
   },
   amenityText: {
     fontSize: 15,
-    color: "#2c3e50",
+    color: COLORS.text,
     marginLeft: 8,
+    fontWeight: "700",
   },
   contactRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 10,
+    marginBottom: 12,
+    backgroundColor: "#F7F9FD",
+    borderWidth: 1,
+    borderColor: "#EEF1F7",
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 11,
   },
   contactText: {
     fontSize: 15,
-    color: "#2c3e50",
+    color: COLORS.text,
     marginLeft: 10,
+    fontWeight: "700",
   },
   mapContainer: {
     height: 200,
-    borderRadius: 15,
+    borderRadius: 18,
     overflow: "hidden",
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   map: {
     width: "100%",
@@ -359,18 +460,19 @@ const styles = StyleSheet.create({
   mapAddress: {
     marginTop: 10,
     fontSize: 14,
-    color: "#7f8c8d",
+    color: COLORS.muted,
+    fontWeight: "600",
   },
   directionsBtn: {
     flexDirection: "row",
     alignItems: "center",
     marginTop: 10,
-    paddingVertical: 8,
+    paddingVertical: 10,
   },
   directionsBtnText: {
-    color: "#3F56A5",
+    color: COLORS.primary,
     fontSize: 15,
-    fontWeight: "600",
+    fontWeight: "900",
     marginLeft: 5,
   },
   bottomBar: {
@@ -379,12 +481,17 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     flexDirection: "row",
-    backgroundColor: "white",
+    backgroundColor: COLORS.surface,
     padding: 15,
     paddingBottom: 30,
     borderTopWidth: 1,
-    borderTopColor: "#ecf0f1",
+    borderTopColor: COLORS.border,
     gap: 15,
+    shadowColor: "#22315F",
+    shadowOffset: { width: 0, height: -6 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 10,
   },
   messageBtn: {
     flex: 1,
@@ -392,26 +499,26 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 2,
-    borderColor: "#3F56A5",
-    borderRadius: 10,
+    borderColor: COLORS.primary,
+    borderRadius: 16,
     paddingVertical: 12,
     gap: 8,
   },
   messageBtnText: {
-    color: "#3F56A5",
+    color: COLORS.primary,
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "900",
   },
   bookBtn: {
     flex: 1,
-    backgroundColor: "#3F56A5",
-    borderRadius: 10,
+    backgroundColor: COLORS.primary,
+    borderRadius: 16,
     paddingVertical: 14,
     alignItems: "center",
   },
   bookBtnText: {
     color: "white",
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "900",
   },
 });
