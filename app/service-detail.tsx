@@ -11,28 +11,23 @@ import {
     TouchableOpacity,
     View
 } from "react-native";
-import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
+import MapView from "react-native-maps/lib/MapView";
+import Marker from "react-native-maps/lib/MapMarker";
+import { PROVIDER_GOOGLE } from "react-native-maps/lib/ProviderConstants";
+import { Colors } from "../constants/theme";
 import { rooms } from "../data/mockData";
 
 const { width: screenWidth } = Dimensions.get("window");
 
-const COLORS = {
-  primary: "#3F56A5",
-  background: "#F4F6FB",
-  surface: "#FFFFFF",
-  text: "#172033",
-  muted: "#6D7587",
-  border: "#E5E9F4",
-  green: "#1B9A5A",
-};
+const COLORS = Colors.light;
 
 // Mock images for carousel
 const serviceImages = [
-  "https://picsum.photos/800/600?random=1",
-  "https://picsum.photos/800/600?random=2",
-  "https://picsum.photos/800/600?random=3",
-  "https://picsum.photos/800/600?random=4",
-  "https://picsum.photos/800/600?random=5",
+  "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?q=80&w=1000",
+  "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?q=80&w=1000",
+  "https://images.unsplash.com/photo-1484154218962-a197022b5858?q=80&w=1000",
+  "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?q=80&w=1000",
+  "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?q=80&w=1000",
 ];
 
 export default function ServiceDetailScreen() {
@@ -141,7 +136,7 @@ export default function ServiceDetailScreen() {
             </View>
             <View style={styles.heroRatingBadge}>
               <Ionicons name="star" size={14} color="#F59E0B" />
-              <Text style={styles.heroRatingText}>4.8</Text>
+              <Text style={styles.heroRatingText}>{service.rating.toFixed(1)}</Text>
             </View>
           </View>
 

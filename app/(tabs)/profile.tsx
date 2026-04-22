@@ -1,8 +1,12 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { AppHeader } from "@/components/AppHeader";
+import { Screen } from "@/components/Screen";
+import { Colors, Radius, Shadows, Spacing, Typography } from "@/constants/theme";
+import type { IconName } from "@/types/rental";
 
 const menuItems = [
-  { icon: "person-outline", title: "Edit Profile", color: "#3F56A5" },
+  { icon: "person-outline", title: "Edit Profile", color: Colors.light.primary },
   { icon: "heart-outline", title: "Favorites", color: "#e74c3c" },
   { icon: "notifications-outline", title: "Notifications", color: "#f39c12" },
   { icon: "location-outline", title: "Saved Locations", color: "#27ae60" },
@@ -11,43 +15,23 @@ const menuItems = [
   { icon: "shield-checkmark-outline", title: "Privacy & Security", color: "#34495e" },
   { icon: "help-circle-outline", title: "Help & Support", color: "#3498db" },
   { icon: "information-circle-outline", title: "About Us", color: "#7f8c8d" },
-];
-
-const COLORS = {
-  primary: "#3F56A5",
-  background: "#F4F6FB",
-  surface: "#FFFFFF",
-  text: "#172033",
-  muted: "#6D7587",
-  border: "#E5E9F4",
-  danger: "#E74C3C",
-};
+] satisfies { icon: IconName; title: string; color: string }[];
 
 export default function ProfileScreen() {
   return (
-    <View style={styles.container}>
-      {/* HEADER */}
-      <View style={styles.header}>
-        <View style={styles.headerTop}>
-          <View>
-            <Text style={styles.locationLabel}>Account</Text>
-            <Text style={styles.headerTitle}>Profile</Text>
-          </View>
-          <TouchableOpacity activeOpacity={0.8} style={styles.headerIconBtn}>
-            <Ionicons name="settings-outline" size={21} color="white" />
-          </TouchableOpacity>
-        </View>
-        <Text style={styles.headerSubtitle}>
-          Manage bookings, saved listings, payments, and account preferences.
-        </Text>
-      </View>
+    <Screen>
+      <AppHeader
+        eyebrow="Account"
+        title="Profile"
+        subtitle="Manage bookings, saved listings, payments, and account preferences."
+        icon="settings-outline"
+      />
 
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* PROFILE CARD */}
         <View style={styles.profileCard}>
           <View style={styles.avatarContainer}>
             <Image 
-              source={{ uri: "https://picsum.photos/200?random=50" }} 
+              source={{ uri: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=400" }}
               style={styles.avatar}
             />
             <TouchableOpacity style={styles.editAvatarBtn}>
@@ -94,7 +78,7 @@ export default function ProfileScreen() {
           {menuItems.slice(0, 5).map((item, index) => (
             <TouchableOpacity key={index} style={styles.menuItem}>
               <View style={[styles.menuIcon, { backgroundColor: item.color + "20" }]}>
-                <Ionicons name={item.icon as any} size={20} color={item.color} />
+                <Ionicons name={item.icon} size={20} color={item.color} />
               </View>
               <Text style={styles.menuTitle}>{item.title}</Text>
               <Ionicons name="chevron-forward" size={20} color="#bdc3c7" />
@@ -107,7 +91,7 @@ export default function ProfileScreen() {
           {menuItems.slice(5).map((item, index) => (
             <TouchableOpacity key={index} style={styles.menuItem}>
               <View style={[styles.menuIcon, { backgroundColor: item.color + "20" }]}>
-                <Ionicons name={item.icon as any} size={20} color={item.color} />
+                <Ionicons name={item.icon} size={20} color={item.color} />
               </View>
               <Text style={styles.menuTitle}>{item.title}</Text>
               <Ionicons name="chevron-forward" size={20} color="#bdc3c7" />
@@ -126,68 +110,21 @@ export default function ProfileScreen() {
         
         <View style={{ height: 100 }} />
       </ScrollView>
-    </View>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  header: {
-    backgroundColor: COLORS.primary,
-    paddingTop: 45,
-    paddingHorizontal: 20,
-    paddingBottom: 24,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-  },
-  headerTop: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  locationLabel: {
-    color: "rgba(255,255,255,0.72)",
-    fontSize: 13,
-    fontWeight: "700",
-    marginBottom: 4,
-  },
-  headerTitle: {
-    color: "white",
-    fontSize: 26,
-    fontWeight: "900",
-  },
-  headerIconBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: "rgba(255,255,255,0.14)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  headerSubtitle: {
-    color: "rgba(255,255,255,0.82)",
-    fontSize: 14,
-    fontWeight: "500",
-    lineHeight: 21,
-    marginTop: 12,
-  },
   profileCard: {
-    backgroundColor: COLORS.surface,
-    marginHorizontal: 20,
+    backgroundColor: Colors.light.surface,
+    marginHorizontal: Spacing.xl,
     marginTop: 18,
-    borderRadius: 20,
-    padding: 20,
+    borderRadius: Radius.xl,
+    padding: Spacing.xl,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: COLORS.border,
-    shadowColor: "#22315F",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.1,
-    shadowRadius: 16,
-    elevation: 4,
+    borderColor: Colors.light.border,
+    ...Shadows.card,
   },
   avatarContainer: {
     position: "relative",
@@ -197,66 +134,60 @@ const styles = StyleSheet.create({
     height: 90,
     borderRadius: 45,
     borderWidth: 3,
-    borderColor: COLORS.primary,
+    borderColor: Colors.light.primary,
   },
   editAvatarBtn: {
     position: "absolute",
     bottom: 0,
     right: 0,
-    backgroundColor: COLORS.primary,
+    backgroundColor: Colors.light.primary,
     borderRadius: 15,
     padding: 8,
   },
   userName: {
-    fontSize: 22,
-    fontWeight: "900",
-    color: COLORS.text,
-    marginTop: 12,
+    color: Colors.light.text,
+    marginTop: Spacing.md,
+    ...Typography.sectionTitle,
   },
   userEmail: {
-    fontSize: 14,
-    color: COLORS.muted,
-    marginTop: 4,
+    color: Colors.light.muted,
+    marginTop: Spacing.xs,
+    ...Typography.body,
   },
   statsRow: {
     flexDirection: "row",
     marginTop: 20,
     paddingTop: 15,
     borderTopWidth: 1,
-    borderTopColor: COLORS.border,
+    borderTopColor: Colors.light.border,
   },
   statItem: {
     flex: 1,
     alignItems: "center",
   },
   statNumber: {
-    fontSize: 20,
-    fontWeight: "900",
-    color: COLORS.primary,
+    color: Colors.light.primary,
+    ...Typography.sectionTitle,
   },
   statLabel: {
-    fontSize: 12,
-    color: COLORS.muted,
+    color: Colors.light.muted,
     marginTop: 2,
+    ...Typography.eyebrow,
   },
   statDivider: {
     width: 1,
-    backgroundColor: COLORS.border,
+    backgroundColor: Colors.light.border,
   },
   membershipCard: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginHorizontal: 20,
+    marginHorizontal: Spacing.xl,
     marginTop: 15,
-    borderRadius: 18,
-    padding: 16,
-    backgroundColor: COLORS.primary,
-    shadowColor: "#22315F",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.14,
-    shadowRadius: 16,
-    elevation: 5,
+    borderRadius: Radius.lg,
+    padding: Spacing.lg,
+    backgroundColor: Colors.light.primary,
+    ...Shadows.card,
   },
   membershipLeft: {
     flexDirection: "row",
@@ -267,13 +198,13 @@ const styles = StyleSheet.create({
   },
   membershipTitle: {
     color: "white",
-    fontSize: 16,
+    ...Typography.cardTitle,
     fontWeight: "900",
   },
   membershipSubtitle: {
     color: "rgba(255,255,255,0.8)",
-    fontSize: 12,
     marginTop: 2,
+    ...Typography.eyebrow,
   },
   upgradeBtn: {
     backgroundColor: "white",
@@ -282,30 +213,26 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   upgradeBtnText: {
-    color: COLORS.primary,
+    color: Colors.light.primary,
+    ...Typography.label,
     fontWeight: "900",
-    fontSize: 14,
   },
   menuSection: {
-    backgroundColor: COLORS.surface,
-    marginHorizontal: 20,
-    marginTop: 20,
-    borderRadius: 18,
+    backgroundColor: Colors.light.surface,
+    marginHorizontal: Spacing.xl,
+    marginTop: Spacing.xl,
+    borderRadius: Radius.lg,
     padding: 15,
     borderWidth: 1,
-    borderColor: COLORS.border,
-    shadowColor: "#22315F",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.08,
-    shadowRadius: 14,
-    elevation: 3,
+    borderColor: Colors.light.border,
+    ...Shadows.card,
   },
   menuSectionTitle: {
-    fontSize: 14,
-    fontWeight: "900",
-    color: COLORS.muted,
+    color: Colors.light.muted,
     marginBottom: 10,
     marginLeft: 5,
+    ...Typography.label,
+    fontWeight: "900",
   },
   menuItem: {
     flexDirection: "row",
@@ -324,8 +251,9 @@ const styles = StyleSheet.create({
   menuTitle: {
     flex: 1,
     fontSize: 16,
-    color: COLORS.text,
+    color: Colors.light.text,
     marginLeft: 12,
+    ...Typography.cardTitle,
     fontWeight: "700",
   },
   logoutBtn: {
@@ -335,21 +263,21 @@ const styles = StyleSheet.create({
     backgroundColor: "#FEF2F2",
     borderWidth: 1,
     borderColor: "#FAD4D4",
-    marginHorizontal: 20,
+    marginHorizontal: Spacing.xl,
     marginTop: 25,
     padding: 15,
     borderRadius: 15,
     gap: 10,
   },
   logoutText: {
-    color: COLORS.danger,
-    fontSize: 16,
+    color: Colors.light.danger,
+    ...Typography.cardTitle,
     fontWeight: "900",
   },
   versionText: {
     textAlign: "center",
     color: "#9CA3AF",
-    fontSize: 13,
+    ...Typography.label,
     marginTop: 20,
   },
 });

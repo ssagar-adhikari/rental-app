@@ -1,50 +1,155 @@
-# Welcome to your Expo app 👋
+# Rental App
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Rental App is an Expo React Native application for browsing rental categories, room listings, service listings, listing details, search suggestions, and a profile area. The app uses Expo Router for file-based navigation and a small shared design system for consistent typography, colors, spacing, card styling, and headers.
 
-## Get started
+## Current Features
 
-1. Install dependencies
+- Tab navigation for Home, Category, Search, and Profile.
+- Home screen with hero header, category carousel, available rooms, and trending listings.
+- Category screen with searchable category grid.
+- Search screen with recent searches, popular searches, category shortcuts, featured listings, and nearby recommendations.
+- Service list screen with grid and row layout modes.
+- Service detail screen with image carousel, description, amenities, contact information, map preview, and bottom action bar.
+- Profile screen with account summary, membership card, account menu, settings menu, and logout action.
+- Shared reusable components for headers, search bars, section headings, screens, category cards, and room cards.
+- Typed data models for categories and rental listings.
+- Centralized design tokens for colors, typography, spacing, radius, and shadows.
 
-   ```bash
-   npm install
-   ```
+## Tech Stack
 
-2. Start the app
+- Expo 54
+- React 19
+- React Native 0.81
+- Expo Router 6
+- TypeScript
+- React Native Maps
+- Expo Vector Icons
 
-   ```bash
-   npx expo start
-   ```
+## Project Structure
 
-In the output, you'll find options to open the app in a
+```text
+app/
+  _layout.tsx              Root stack navigation
+  (tabs)/                  Main tab screens
+    _layout.tsx            Bottom tab configuration
+    index.tsx              Home screen
+    category.tsx           Category browser
+    search.tsx             Search and recommendations
+    profile.tsx            Profile/account screen
+  service-list.tsx         Category/service listing screen
+  service-detail.tsx       Listing detail screen
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+components/
+  AppHeader.tsx            Shared top header for screens
+  Header.tsx               Home hero/header
+  SearchBar.tsx            Shared search input
+  SectionHeader.tsx        Shared section heading/action row
+  Screen.tsx               Shared screen wrapper
+  CategoryCard.tsx         Horizontal category card
+  CategoryItem.tsx         Grid category card
+  RoomCard.tsx             Rental listing card
+  themed-text.tsx          Theme-aware text helper
+  themed-view.tsx          Theme-aware view helper
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+constants/
+  theme.ts                 Design tokens
+  categoryMeta.ts          Category icons, counts, accents
 
-## Get a fresh project
+data/
+  mockData.ts              Home/listing mock data
+  categories.ts            Full category list
 
-When you're ready, run:
-
-```bash
-npm run reset-project
+types/
+  rental.ts                Shared app data types
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## Design System
 
-## Learn more
+The refactor introduced a lightweight design-system pattern in `constants/theme.ts`.
 
-To learn more about developing your project with Expo, look at the following resources:
+It defines:
+- `Colors`: app palette for light/dark mode keys plus app-specific tokens.
+- `Spacing`: reusable spacing scale.
+- `Radius`: reusable border radius scale.
+- `Typography`: shared text styles for labels, body, card titles, section titles, screen titles, and hero titles.
+- `Shadows`: shared shadow presets for cards and header search elements.
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+New UI work should prefer these tokens instead of hardcoded colors, font sizes, spacing, or shadow values.
 
-## Join the community
+## Data Model
 
-Join our community of developers creating universal apps.
+Shared data types live in `types/rental.ts`.
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+Main types:
+- `Category`: category id, name, title, and image.
+- `RentalListing`: listing id, title, price, location, image, rating, and features.
+- `CategoryMeta`: icon, listing count label, and accent color.
+
+Mock data currently lives in `data/mockData.ts` and `data/categories.ts`. This keeps the app usable while backend/API integration is not yet added.
+
+## Navigation
+
+The app uses Expo Router.
+
+- `app/_layout.tsx` defines the root stack.
+- `app/(tabs)/_layout.tsx` defines the bottom tabs.
+- `service-list` and `service-detail` are stack routes opened from category/listing cards.
+
+The detail screen currently imports `react-native-maps` via direct internal module paths:
+
+```ts
+import MapView from "react-native-maps/lib/MapView";
+import Marker from "react-native-maps/lib/MapMarker";
+import { PROVIDER_GOOGLE } from "react-native-maps/lib/ProviderConstants";
+```
+
+This avoids a Metro bundling issue where the root `react-native-maps` barrel import failed to resolve `./MapCircle`.
+
+## Development
+
+Install dependencies:
+
+```bash
+npm install
+```
+
+Start Expo:
+
+```bash
+npx expo start
+```
+
+Clear Metro cache if bundling behaves unexpectedly:
+
+```bash
+npx expo start -c
+```
+
+Run lint:
+
+```bash
+npm run lint
+```
+
+Run TypeScript check:
+
+```bash
+npx tsc --noEmit
+```
+
+## What We Have Done So Far
+
+- Pulled the latest Git changes after resetting local refactor work.
+- Fixed the Android bundling error caused by `react-native-maps` root imports.
+- Refactored the app around shared design tokens and reusable UI components.
+- Made typography, colors, spacing, radius, and shadows more consistent.
+- Added typed rental/category models.
+- Removed `any` usage from the main app/components refactor surface.
+- Replaced placeholder Picsum data in active mock data with more relevant listing/category images.
+- Simplified Home, Category, Search, and Profile screens by composing shared components.
+
+## Current Notes
+
+- The app still uses local mock data.
+- `package-lock.json` has local changes that were present during the refactor session.
+- In the Codex shell used for the refactor, `node`, `npm`, and `npx` were not available on PATH, so lint/typecheck/start could not be run there. Run the verification commands above from your normal development terminal.

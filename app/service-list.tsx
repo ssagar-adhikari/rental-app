@@ -3,20 +3,13 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
 import { FlatList, Image, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import RoomCard from "../components/RoomCard";
+import { Colors } from "../constants/theme";
 import { rooms } from "../data/mockData";
+import type { RentalListing } from "../types/rental";
 
-const COLORS = {
-  primary: "#3F56A5",
-  primaryDark: "#263E8A",
-  background: "#F4F6FB",
-  surface: "#FFFFFF",
-  text: "#1F2937",
-  muted: "#6B7280",
-  border: "#E7EAF3",
-  success: "#1B9A5A",
-};
+const COLORS = Colors.light;
 
-function ServiceGridCard({ item, onPress }: { item: any; onPress: () => void }) {
+function ServiceGridCard({ item, onPress }: { item: RentalListing; onPress: () => void }) {
   const [priceAmount, priceUnit] = item.price.split("/").map((value: string) => value.trim());
 
   return (
@@ -85,7 +78,7 @@ export default function ServiceListScreen() {
   // Filter services based on category (for now showing all rooms)
   const services = rooms;
 
-  const renderItem = ({ item }: { item: any }) => {
+  const renderItem = ({ item }: { item: RentalListing }) => {
     if (viewMode === "grid") {
       return (
         <View style={styles.gridItem}>

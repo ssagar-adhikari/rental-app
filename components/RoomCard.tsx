@@ -1,56 +1,66 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { Image, StyleSheet, Text, TouchableOpacity, View, ViewStyle } from "react-native";
+import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import type { StyleProp, ViewStyle } from "react-native";
+import { Colors, Radius, Shadows, Spacing, Typography } from "@/constants/theme";
+import type { RentalListing } from "@/types/rental";
 
-export default function RoomCard({ item, cardStyle }: { item: any; cardStyle?: ViewStyle }) {
+type RoomCardProps = {
+  item: RentalListing;
+  cardStyle?: StyleProp<ViewStyle>;
+};
+
+const featureIcons = ["bed-outline", "water-outline", "resize-outline"] as const;
+
+export default function RoomCard({ item, cardStyle }: RoomCardProps) {
   const router = useRouter();
-  const [priceAmount, priceUnit] = item.price.split("/").map((value: string) => value.trim());
+  const [priceAmount, priceUnit] = item.price.split("/").map((value) => value.trim());
 
   return (
-    <TouchableOpacity 
+    <TouchableOpacity
+      activeOpacity={0.9}
       style={[styles.card, cardStyle]}
       onPress={() => router.push(`/service-detail?serviceId=${item.id}`)}
     >
       <Image source={{ uri: item.image }} style={styles.image} />
-      
-      {/* RATING BADGE */}
+
       <View style={styles.ratingBadge}>
-        <Ionicons name="star" size={12} color="#f39c12" />
-          <Text style={styles.ratingText}>4.8</Text>
+        <Ionicons name="star" size={12} color={Colors.light.warning} />
+        <Text style={styles.ratingText}>{item.rating.toFixed(1)}</Text>
       </View>
 
-      {/* HEART BUTTON */}
-      <TouchableOpacity style={styles.heartBtn} onPress={() => {}}>
+      <TouchableOpacity activeOpacity={0.8} style={styles.heartBtn} onPress={() => {}}>
         <Ionicons name="heart-outline" size={18} color="white" />
       </TouchableOpacity>
 
       <View style={styles.info}>
-        <Text style={styles.title} numberOfLines={1}>{item.title}</Text>
-        
+        <Text style={styles.title} numberOfLines={1}>
+          {item.title}
+        </Text>
+
         <View style={styles.priceRow}>
-          <Text style={styles.price} numberOfLines={1}>{priceAmount}</Text>
-          <Text style={styles.priceUnit} numberOfLines={1}>/{priceUnit || "month"}</Text>
-        </View>
-        
-        <View style={styles.locationRow}>
-          <Ionicons name="location-outline" size={14} color="#6D7587" />
-          <Text style={styles.location} numberOfLines={1}>{item.location}</Text>
+          <Text style={styles.price} numberOfLines={1}>
+            {priceAmount}
+          </Text>
+          <Text style={styles.priceUnit} numberOfLines={1}>
+            /{priceUnit || "month"}
+          </Text>
         </View>
 
-        {/* FEATURES */}
+        <View style={styles.locationRow}>
+          <Ionicons name="location-outline" size={14} color={Colors.light.muted} />
+          <Text style={styles.location} numberOfLines={1}>
+            {item.location}
+          </Text>
+        </View>
+
         <View style={styles.featuresRow}>
-          <View style={styles.featureItem}>
-            <Ionicons name="bed-outline" size={14} color="#3F56A5" />
-            <Text style={styles.featureText}>2 Bed</Text>
-          </View>
-          <View style={styles.featureItem}>
-            <Ionicons name="water-outline" size={14} color="#3F56A5" />
-            <Text style={styles.featureText}>2 Bath</Text>
-          </View>
-          <View style={styles.featureItem}>
-            <Ionicons name="resize-outline" size={14} color="#3F56A5" />
-            <Text style={styles.featureText}>1200 sqft</Text>
-          </View>
+          {item.features.slice(0, 3).map((feature, index) => (
+            <View key={feature} style={styles.featureItem}>
+              <Ionicons name={featureIcons[index] ?? "checkmark-circle-outline"} size={14} color={Colors.light.primary} />
+              <Text style={styles.featureText}>{feature}</Text>
+            </View>
+          ))}
         </View>
       </View>
     </TouchableOpacity>
@@ -59,114 +69,96 @@ export default function RoomCard({ item, cardStyle }: { item: any; cardStyle?: V
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: "white",
-    borderRadius: 18,
+    backgroundColor: Colors.light.surface,
+    borderRadius: Radius.lg,
     overflow: "hidden",
     borderWidth: 1,
-    borderColor: "#E5E9F4",
-    elevation: 4,
-    shadowColor: "#22315F",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.1,
-    shadowRadius: 16,
+    borderColor: Colors.light.border,
+    ...Shadows.card,
   },
-
   image: {
     width: "100%",
     height: 150,
+    backgroundColor: Colors.light.border,
   },
-
   ratingBadge: {
     position: "absolute",
-    top: 10,
-    left: 10,
+    top: Spacing.md,
+    left: Spacing.md,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "white",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 14,
-    gap: 4,
+    backgroundColor: Colors.light.surface,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    borderRadius: Radius.pill,
+    gap: Spacing.xs,
   },
-
   ratingText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#172033",
+    color: Colors.light.text,
+    ...Typography.eyebrow,
   },
-
   heartBtn: {
     position: "absolute",
-    top: 10,
-    right: 10,
+    top: Spacing.md,
+    right: Spacing.md,
     backgroundColor: "rgba(17,24,39,0.42)",
-    borderRadius: 20,
-    padding: 8,
+    borderRadius: Radius.pill,
+    padding: Spacing.sm,
   },
-
   info: {
     padding: 14,
   },
-
   title: {
-    fontSize: 16,
+    color: Colors.light.text,
+    marginBottom: Spacing.sm,
+    ...Typography.cardTitle,
     fontWeight: "900",
-    color: "#172033",
-    marginBottom: 8,
   },
-
   priceRow: {
     flexDirection: "row",
     alignItems: "baseline",
-    marginBottom: 10,
+    marginBottom: Spacing.md,
     minWidth: 0,
   },
-
   price: {
     flexShrink: 1,
+    color: Colors.light.primary,
     fontSize: 18,
+    lineHeight: 24,
     fontWeight: "900",
-    color: "#3F56A5",
   },
-
   priceUnit: {
-    fontSize: 12,
-    color: "#6D7587",
-    marginLeft: 4,
-    fontWeight: "700",
+    color: Colors.light.muted,
+    marginLeft: Spacing.xs,
+    ...Typography.eyebrow,
   },
-
   locationRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 12,
+    marginBottom: Spacing.md,
     gap: 6,
   },
-
   location: {
-    fontSize: 13,
-    color: "#6D7587",
     flex: 1,
-    fontWeight: "600",
+    color: Colors.light.muted,
+    ...Typography.label,
   },
-
   featuresRow: {
     flexDirection: "row",
     borderTopWidth: 1,
     borderTopColor: "#EEF1F7",
-    paddingTop: 12,
+    paddingTop: Spacing.md,
     justifyContent: "space-between",
   },
-
   featureItem: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
+    gap: Spacing.xs,
   },
-
   featureText: {
+    color: Colors.light.muted,
     fontSize: 11,
-    color: "#6D7587",
+    lineHeight: 14,
     fontWeight: "700",
   },
 });

@@ -1,5 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
-import { StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { SearchBar } from "@/components/SearchBar";
+import { Colors, Radius, Spacing, Typography } from "@/constants/theme";
 
 export default function Header() {
   return (
@@ -24,25 +26,15 @@ export default function Header() {
         Browse verified rentals, vehicles, services, and essentials near you.
       </Text>
 
-      <View style={styles.search}>
-        <Ionicons name="search" size={20} color="#6D7587" />
-        <TextInput
-          placeholder="Search area, room, apartment..."
-          placeholderTextColor="#98A1B3"
-          style={styles.searchInput}
-        />
-        <View style={styles.searchBadge}>
-          <Ionicons name="options-outline" size={17} color="#3F56A5" />
-        </View>
-      </View>
+      <SearchBar placeholder="Search area, room, apartment..." />
 
       <View style={styles.statsRow}>
         <View style={styles.statPill}>
-          <Ionicons name="shield-checkmark-outline" size={15} color="#1B9A5A" />
+          <Ionicons name="shield-checkmark-outline" size={15} color={Colors.light.success} />
           <Text style={styles.statText}>Verified</Text>
         </View>
         <View style={styles.statPill}>
-          <Ionicons name="sparkles-outline" size={15} color="#F59E0B" />
+          <Ionicons name="sparkles-outline" size={15} color={Colors.light.warning} />
           <Text style={styles.statText}>Fresh listings</Text>
         </View>
       </View>
@@ -52,105 +44,59 @@ export default function Header() {
 
 const styles = StyleSheet.create({
   header: {
-    backgroundColor: "#3F56A5",
+    backgroundColor: Colors.light.primary,
     paddingTop: 45,
-    paddingHorizontal: 20,
-    paddingBottom: 24,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
+    paddingHorizontal: Spacing.xl,
+    paddingBottom: Spacing.xxl,
+    borderBottomLeftRadius: Radius.xl,
+    borderBottomRightRadius: Radius.xl,
+    gap: Spacing.md,
   },
-
   top: {
     flexDirection: "row",
     alignItems: "flex-start",
     justifyContent: "space-between",
   },
-
   iconRow: {
     flexDirection: "row",
-    gap: 10,
+    gap: Spacing.sm,
   },
-
   iconBtn: {
     width: 40,
     height: 40,
-    borderRadius: 20,
+    borderRadius: Radius.pill,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "rgba(255,255,255,0.14)",
   },
-
   location: {
     color: "rgba(255,255,255,0.72)",
-    fontSize: 13,
-    fontWeight: "700",
-    marginBottom: 4,
+    marginBottom: Spacing.xs,
+    ...Typography.label,
   },
-
   title: {
     color: "white",
-    fontSize: 26,
-    fontWeight: "900",
+    ...Typography.screenTitle,
   },
-
   subtitle: {
     color: "rgba(255,255,255,0.82)",
-    fontSize: 14,
-    fontWeight: "500",
-    lineHeight: 21,
-    marginTop: 12,
+    ...Typography.body,
   },
-
-  search: {
-    backgroundColor: "white",
-    borderRadius: 16,
-    height: 54,
-    paddingHorizontal: 15,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    marginTop: 20,
-    shadowColor: "#172554",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.16,
-    shadowRadius: 18,
-    elevation: 7,
-  },
-
-  searchInput: {
-    flex: 1,
-    color: "#172033",
-    fontSize: 16,
-  },
-
-  searchBadge: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#EEF2FF",
-  },
-
   statsRow: {
     flexDirection: "row",
-    gap: 10,
-    marginTop: 16,
+    gap: Spacing.sm,
   },
-
   statPill: {
     flexDirection: "row",
     alignItems: "center",
     gap: 7,
     backgroundColor: "rgba(255,255,255,0.14)",
-    borderRadius: 16,
-    paddingHorizontal: 12,
+    borderRadius: Radius.md,
+    paddingHorizontal: Spacing.md,
     paddingVertical: 9,
   },
-
   statText: {
     color: "white",
-    fontSize: 12,
-    fontWeight: "800",
+    ...Typography.eyebrow,
   },
 });
