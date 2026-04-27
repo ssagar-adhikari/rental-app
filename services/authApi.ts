@@ -13,19 +13,20 @@ function resolveApiUrl() {
     const host = hostUri?.split(":")[0];
 
     if (host) {
-      return `http://${host}:8000/api`;
+      return `http://${host}/rental-backend/public/api`;
     }
 
     if (Platform.OS === "android") {
-      return "http://10.0.2.2:8000/api";
+      return "http://10.0.2.2/rental-backend/public/api";
     }
   }
 
-  return "http://127.0.0.1:8000/api";
+  return "http://127.0.0.1/rental-backend/public/api";
 }
 
 const API_URL = resolveApiUrl();
 const TOKEN_KEY = "rental_marketplace_auth_token";
+const REQUEST_TIMEOUT_MS = 15000;
 
 type RequestOptions = {
   method?: "GET" | "POST" | "DELETE";
@@ -57,15 +58,23 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   }
 
   let response: Response;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
   try {
     response = await fetch(`${API_URL}${path}`, {
       method: options.method ?? "GET",
       headers,
       body: options.body ? JSON.stringify(options.body) : undefined,
+      signal: controller.signal,
     });
-  } catch {
-    throw new ApiError(`Cannot connect to API at ${API_URL}. Make sure Laravel is running on your LAN IP and port 8000.`, 0);
+  } catch (error) {
+    const timedOut = error instanceof Error && error.name === "AbortError";
+    const detail = timedOut ? "The request timed out." : "The network request failed.";
+
+    throw new ApiError(`${detail} Cannot connect to API at ${API_URL}. Make sure Laravel is reachable from this device.`, 0);
+  } finally {
+    clearTimeout(timeout);
   }
 
   const json = (await response.json().catch(() => null)) as ApiEnvelope<T> | null;

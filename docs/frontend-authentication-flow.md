@@ -16,33 +16,29 @@ Authentication is token-based. After successful registration or login, the backe
 - `app/forgot-password.tsx`: password reset request screen
 - `app/reset-password.tsx`: password reset completion screen
 - `app/(tabs)/profile.tsx`: authenticated profile, guest state, logout, and 2FA toggle
-- `.env.local`: local API URL used by Expo
+- `.env`: local API URL used by Expo
 
 ## API URL Configuration
 
 The frontend reads the backend URL from:
 
 ```env
-EXPO_PUBLIC_API_URL=http://172.16.10.222:8003/api
+EXPO_PUBLIC_API_URL=http://YOUR_LAN_IP/rental-backend/public/api
 ```
 
 This is required for physical mobile devices. A phone cannot use `127.0.0.1` to reach the Laravel server because `127.0.0.1` points to the phone itself.
 
-For local development:
+For local development with XAMPP Apache:
 
-1. Start Laravel on a network-accessible host:
+1. Start Apache from the XAMPP control panel.
 
-```bash
-php artisan serve --host=0.0.0.0 --port=8003
-```
-
-2. Set the Expo API URL:
+2. Set the Expo API URL in `.env`:
 
 ```env
-EXPO_PUBLIC_API_URL=http://YOUR_LAN_IP:8003/api
+EXPO_PUBLIC_API_URL=http://YOUR_LAN_IP/rental-backend/public/api
 ```
 
-3. Restart Expo after changing `.env.local`:
+3. Restart Expo after changing `.env`:
 
 ```bash
 npx expo start
@@ -329,21 +325,17 @@ Examples:
 
 If the frontend cannot reach Laravel, check:
 
-1. Laravel is running:
+1. Apache is running in XAMPP.
 
-```bash
-php artisan serve --host=0.0.0.0 --port=8003
-```
-
-2. `.env.local` points to the machine LAN IP:
+2. `.env` points to the machine LAN IP:
 
 ```env
-EXPO_PUBLIC_API_URL=http://YOUR_LAN_IP:8003/api
+EXPO_PUBLIC_API_URL=http://YOUR_LAN_IP/rental-backend/public/api
 ```
 
-3. Expo was restarted after changing `.env.local`.
+3. Expo was restarted after changing `.env`.
 4. Phone and computer are on the same network.
-5. Firewall allows port `8003`.
+5. Firewall allows private network access to Apache.
 
 ## Role Behavior
 
