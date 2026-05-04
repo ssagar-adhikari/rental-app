@@ -6,6 +6,9 @@ import { AppHeader } from "@/components/AppHeader";
 import { Screen } from "@/components/Screen";
 import { Colors, Radius, Shadows, Spacing, Typography } from "@/constants/theme";
 import { useAuth } from "@/context/AuthContext";
+import { ApiError } from "@/services/authApi";
+import type { UserRole } from "@/types/auth";
+import { getPostAuthRoute, getRoleRoute, hasMultipleAppRoles, type AppRole } from "@/utils/authRoutes";
 import type { IconName } from "@/types/rental";
 
 const menuItems = [
@@ -20,9 +23,28 @@ const menuItems = [
   { icon: "information-circle-outline", title: "About Us", color: "#7f8c8d" },
 ] satisfies { icon: IconName; title: string; color: string }[];
 
+const roleLabels: Record<AppRole, string> = {
+  customer: "Customer",
+  vendor: "Vendor",
+};
+
+function formatRoles(roles: UserRole[]) {
+  const labels = roles
+    .filter((role): role is AppRole => role === "customer" || role === "vendor")
+    .map((role) => roleLabels[role]);
+
+  return labels.length ? labels.join(" + ") : "No role";
+}
+
+function formatRoleSummary(roles: UserRole[]) {
+  return roles.includes("customer") && roles.includes("vendor") ? "Both" : formatRoles(roles);
+}
+
 export default function ProfileScreen() {
-  const { user, loading, logout, enableTwoFactor, disableTwoFactor } = useAuth();
+  const { activeRole, user, loading, logout, addRole, selectRole, enableTwoFactor, disableTwoFactor } = useAuth();
   const [securityBusy, setSecurityBusy] = useState(false);
+  const [roleBusy, setRoleBusy] = useState<AppRole | null>(null);
+  const [roleError, setRoleError] = useState<string | null>(null);
 
   async function toggleTwoFactor() {
     setSecurityBusy(true);
@@ -36,6 +58,28 @@ export default function ProfileScreen() {
     } finally {
       setSecurityBusy(false);
     }
+  }
+
+  async function attachRole(role: AppRole) {
+    setRoleBusy(role);
+    setRoleError(null);
+
+    try {
+      const nextUser = await addRole(role);
+
+      if (nextUser) {
+        router.replace(getPostAuthRoute(nextUser, role));
+      }
+    } catch (exception) {
+      setRoleError(exception instanceof ApiError ? exception.message : "Unable to update account role.");
+    } finally {
+      setRoleBusy(null);
+    }
+  }
+
+  async function switchRole(role: AppRole) {
+    await selectRole(role);
+    router.replace(getRoleRoute(role));
   }
 
   return (
@@ -88,8 +132,8 @@ export default function ProfileScreen() {
               <Text style={styles.userEmail}>{user.email}</Text>
               <View style={styles.statsRow}>
                 <View style={styles.statItem}>
-                  <Text style={styles.statNumber}>{user.roles.includes("vendor") ? "Vendor" : "Customer"}</Text>
-                  <Text style={styles.statLabel}>Role</Text>
+                  <Text style={styles.statNumber}>{formatRoleSummary(user.roles)}</Text>
+                  <Text style={styles.statLabel}>Roles</Text>
                 </View>
                 <View style={styles.statDivider} />
                 <View style={styles.statItem}>
@@ -109,13 +153,89 @@ export default function ProfileScreen() {
                 <Ionicons name="shield-checkmark" size={24} color="#f39c12" />
                 <View style={styles.membershipInfo}>
                   <Text style={styles.membershipTitle}>{user.email_verified ? "Verified account" : "Email verification pending"}</Text>
-                  <Text style={styles.membershipSubtitle}>{user.roles.join(", ")}</Text>
+                  <Text style={styles.membershipSubtitle}>{formatRoles(user.roles)}</Text>
                 </View>
               </View>
               <TouchableOpacity disabled={securityBusy} style={styles.upgradeBtn} onPress={toggleTwoFactor}>
                 <Text style={styles.upgradeBtnText}>{user.two_factor_enabled ? "Disable 2FA" : "Enable 2FA"}</Text>
               </TouchableOpacity>
             </View>
+
+            {hasMultipleAppRoles(user) ? (
+              <View style={styles.roleUpgradeCard}>
+                <View style={styles.roleUpgradeHeader}>
+                  <Ionicons name="swap-horizontal-outline" size={22} color={Colors.light.primary} />
+                  <View style={styles.roleUpgradeInfo}>
+                    <Text style={styles.roleUpgradeTitle}>Active mode</Text>
+                    <Text style={styles.roleUpgradeSubtitle}>Switch between customer and vendor whenever you need.</Text>
+                  </View>
+                </View>
+
+                <View style={styles.roleActionRow}>
+                  <TouchableOpacity
+                    activeOpacity={0.86}
+                    style={[styles.roleActionButton, activeRole !== "customer" && styles.inactiveRoleAction]}
+                    onPress={() => switchRole("customer")}
+                  >
+                    <Ionicons name="bag-handle-outline" size={18} color={activeRole === "customer" ? "white" : Colors.light.primary} />
+                    <Text style={[styles.roleActionText, activeRole !== "customer" && styles.inactiveRoleActionText]}>
+                      {activeRole === "customer" ? "Customer Active" : "Customer Mode"}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    activeOpacity={0.86}
+                    style={[styles.roleActionButton, activeRole !== "vendor" && styles.inactiveRoleAction]}
+                    onPress={() => switchRole("vendor")}
+                  >
+                    <Ionicons name="storefront-outline" size={18} color={activeRole === "vendor" ? "white" : Colors.light.primary} />
+                    <Text style={[styles.roleActionText, activeRole !== "vendor" && styles.inactiveRoleActionText]}>
+                      {activeRole === "vendor" ? "Vendor Active" : "Vendor Mode"}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : null}
+
+            {!user.roles.includes("vendor") || !user.roles.includes("customer") ? (
+              <View style={styles.roleUpgradeCard}>
+                <View style={styles.roleUpgradeHeader}>
+                  <Ionicons name="swap-horizontal-outline" size={22} color={Colors.light.primary} />
+                  <View style={styles.roleUpgradeInfo}>
+                    <Text style={styles.roleUpgradeTitle}>Use another role</Text>
+                    <Text style={styles.roleUpgradeSubtitle}>Add the missing account type to this same login.</Text>
+                  </View>
+                </View>
+
+                <View style={styles.roleActionRow}>
+                  {!user.roles.includes("vendor") ? (
+                    <TouchableOpacity
+                      activeOpacity={0.86}
+                      disabled={roleBusy !== null}
+                      style={[styles.roleActionButton, roleBusy !== null && styles.disabledRoleAction]}
+                      onPress={() => attachRole("vendor")}
+                    >
+                      <Ionicons name="storefront-outline" size={18} color="white" />
+                      <Text style={styles.roleActionText}>{roleBusy === "vendor" ? "Adding..." : "Add Vendor"}</Text>
+                    </TouchableOpacity>
+                  ) : null}
+
+                  {!user.roles.includes("customer") ? (
+                    <TouchableOpacity
+                      activeOpacity={0.86}
+                      disabled={roleBusy !== null}
+                      style={[styles.roleActionButton, roleBusy !== null && styles.disabledRoleAction]}
+                      onPress={() => attachRole("customer")}
+                    >
+                      <Ionicons name="bag-handle-outline" size={18} color="white" />
+                      <Text style={styles.roleActionText}>{roleBusy === "customer" ? "Adding..." : "Add Customer"}</Text>
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+
+                {roleError ? <Text style={styles.roleError}>{roleError}</Text> : null}
+              </View>
+            ) : null}
 
             <View style={styles.menuSection}>
               <Text style={styles.menuSectionTitle}>Account</Text>
@@ -304,6 +424,71 @@ const styles = StyleSheet.create({
     color: Colors.light.primary,
     ...Typography.label,
     fontWeight: "900",
+  },
+  roleUpgradeCard: {
+    backgroundColor: Colors.light.surface,
+    borderColor: Colors.light.border,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    marginHorizontal: Spacing.xl,
+    marginTop: Spacing.xl,
+    padding: Spacing.lg,
+    ...Shadows.card,
+  },
+  roleUpgradeHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: Spacing.md,
+  },
+  roleUpgradeInfo: {
+    flex: 1,
+  },
+  roleUpgradeTitle: {
+    color: Colors.light.text,
+    ...Typography.cardTitle,
+    fontWeight: "900",
+  },
+  roleUpgradeSubtitle: {
+    color: Colors.light.muted,
+    marginTop: 2,
+    ...Typography.eyebrow,
+  },
+  roleActionRow: {
+    flexDirection: "row",
+    gap: Spacing.md,
+    marginTop: Spacing.lg,
+  },
+  roleActionButton: {
+    alignItems: "center",
+    backgroundColor: Colors.light.primary,
+    borderRadius: Radius.md,
+    flex: 1,
+    flexDirection: "row",
+    gap: Spacing.sm,
+    justifyContent: "center",
+    minHeight: 48,
+    paddingHorizontal: Spacing.md,
+  },
+  inactiveRoleAction: {
+    backgroundColor: Colors.light.surfaceMuted,
+    borderColor: Colors.light.border,
+    borderWidth: 1,
+  },
+  disabledRoleAction: {
+    opacity: 0.7,
+  },
+  roleActionText: {
+    color: "white",
+    ...Typography.label,
+    fontWeight: "900",
+  },
+  inactiveRoleActionText: {
+    color: Colors.light.primary,
+  },
+  roleError: {
+    color: Colors.light.danger,
+    marginTop: Spacing.md,
+    ...Typography.label,
   },
   menuSection: {
     backgroundColor: Colors.light.surface,

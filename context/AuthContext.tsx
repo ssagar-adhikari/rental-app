@@ -1,22 +1,36 @@
 import { createContext, PropsWithChildren, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { authApi, clearStoredToken, getStoredToken, storeToken } from "@/services/authApi";
+import {
+  authApi,
+  clearStoredActiveRole,
+  clearStoredToken,
+  getStoredActiveRole,
+  getStoredToken,
+  storeActiveRole,
+  storeToken,
+} from "@/services/authApi";
 import type { AuthUser, LoginResponse, UserRole } from "@/types/auth";
+import { canUseRole, getAvailableAppRoles, type AppRole } from "@/utils/authRoutes";
 
 type RegisterInput = {
   name: string;
   email: string;
   password: string;
   password_confirmation: string;
-  role: Exclude<UserRole, "admin">;
+  roles: Exclude<UserRole, "admin">[];
+  latitude: number;
+  longitude: number;
 };
 
 type AuthContextValue = {
   user: AuthUser | null;
   token: string | null;
+  activeRole: AppRole | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<LoginResponse>;
-  verifyTwoFactor: (email: string, challengeToken: string, code: string) => Promise<void>;
-  register: (input: RegisterInput) => Promise<void>;
+  verifyTwoFactor: (email: string, challengeToken: string, code: string) => Promise<AuthUser>;
+  register: (input: RegisterInput) => Promise<AuthUser>;
+  addRole: (role: AppRole) => Promise<AuthUser | null>;
+  selectRole: (role: AppRole) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
   enableTwoFactor: () => Promise<void>;
@@ -28,13 +42,35 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: PropsWithChildren) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [token, setToken] = useState<string | null>(null);
+  const [activeRole, setActiveRole] = useState<AppRole | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const applySession = useCallback(async (accessToken: string, nextUser: AuthUser) => {
-    await storeToken(accessToken);
-    setToken(accessToken);
-    setUser(nextUser);
-  }, []);
+  const rememberRoleForUser = useCallback(
+    async (nextUser: AuthUser, preferredRole: AppRole | null = activeRole) => {
+      const availableRoles = getAvailableAppRoles(nextUser);
+      const nextRole = canUseRole(nextUser, preferredRole) ? preferredRole : availableRoles.length === 1 ? availableRoles[0] : null;
+
+      if (nextRole) {
+        await storeActiveRole(nextRole);
+      } else {
+        await clearStoredActiveRole();
+      }
+
+      setActiveRole(nextRole);
+      return nextRole;
+    },
+    [activeRole],
+  );
+
+  const applySession = useCallback(
+    async (accessToken: string, nextUser: AuthUser) => {
+      await storeToken(accessToken);
+      setToken(accessToken);
+      setUser(nextUser);
+      await rememberRoleForUser(nextUser);
+    },
+    [rememberRoleForUser],
+  );
 
   const clearSession = useCallback(async () => {
     await clearStoredToken();
@@ -49,7 +85,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
     const nextUser = await authApi.me(token);
     setUser(nextUser);
-  }, [token]);
+    await rememberRoleForUser(nextUser);
+  }, [rememberRoleForUser, token]);
 
   const login = useCallback(
     async (email: string, password: string) => {
@@ -73,6 +110,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       });
 
       await applySession(response.access_token, response.user);
+      return response.user;
     },
     [applySession],
   );
@@ -81,8 +119,35 @@ export function AuthProvider({ children }: PropsWithChildren) {
     async (input: RegisterInput) => {
       const response = await authApi.register(input);
       await applySession(response.access_token, response.user);
+      return response.user;
     },
     [applySession],
+  );
+
+  const addRole = useCallback(
+    async (role: AppRole) => {
+      if (!token) {
+        return null;
+      }
+
+      const nextUser = await authApi.addRole(role, token);
+      setUser(nextUser);
+      await rememberRoleForUser(nextUser, role);
+      return nextUser;
+    },
+    [rememberRoleForUser, token],
+  );
+
+  const selectRole = useCallback(
+    async (role: AppRole) => {
+      if (!user || !canUseRole(user, role)) {
+        return;
+      }
+
+      await storeActiveRole(role);
+      setActiveRole(role);
+    },
+    [user],
   );
 
   const logout = useCallback(async () => {
@@ -116,6 +181,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
     async function boot() {
       const storedToken = await getStoredToken();
+      const storedActiveRole = await getStoredActiveRole();
+      setActiveRole(storedActiveRole);
 
       if (!storedToken) {
         if (mounted) {
@@ -130,6 +197,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
         if (mounted) {
           setToken(storedToken);
           setUser(nextUser);
+          await rememberRoleForUser(nextUser, storedActiveRole);
         }
       } catch {
         await clearStoredToken();
@@ -151,16 +219,33 @@ export function AuthProvider({ children }: PropsWithChildren) {
     () => ({
       user,
       token,
+      activeRole,
       loading,
       login,
       verifyTwoFactor,
       register,
+      addRole,
+      selectRole,
       logout,
       refreshUser,
       enableTwoFactor,
       disableTwoFactor,
     }),
-    [disableTwoFactor, enableTwoFactor, loading, login, logout, refreshUser, register, token, user, verifyTwoFactor],
+    [
+      activeRole,
+      addRole,
+      disableTwoFactor,
+      enableTwoFactor,
+      loading,
+      login,
+      logout,
+      refreshUser,
+      register,
+      selectRole,
+      token,
+      user,
+      verifyTwoFactor,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

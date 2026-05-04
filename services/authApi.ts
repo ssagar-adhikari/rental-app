@@ -1,32 +1,22 @@
 import { Platform } from "react-native";
 import * as SecureStore from "expo-secure-store";
-import Constants from "expo-constants";
 import type { ApiEnvelope, AuthPayload, AuthUser, LoginResponse, UserRole } from "@/types/auth";
 
 function resolveApiUrl() {
-  if (process.env.EXPO_PUBLIC_API_URL) {
-    return process.env.EXPO_PUBLIC_API_URL.replace(/\/$/, "");
+  const apiUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
+
+  if (!apiUrl) {
+    throw new Error("Missing EXPO_PUBLIC_API_URL. Add it to your .env file and restart Expo.");
   }
 
-  if (Platform.OS !== "web") {
-    const hostUri = Constants.expoConfig?.hostUri;
-    const host = hostUri?.split(":")[0];
-
-    if (host) {
-      return `http://${host}/rental-backend/public/api`;
-    }
-
-    if (Platform.OS === "android") {
-      return "http://10.0.2.2/rental-backend/public/api";
-    }
-  }
-
-  return "http://127.0.0.1/rental-backend/public/api";
+  return apiUrl.replace(/\/+$/, "");
 }
 
 const API_URL = resolveApiUrl();
 const TOKEN_KEY = "rental_marketplace_auth_token";
+const ACTIVE_ROLE_KEY = "rental_marketplace_active_role";
 const REQUEST_TIMEOUT_MS = 15000;
+type AppRole = Exclude<UserRole, "admin">;
 
 type RequestOptions = {
   method?: "GET" | "POST" | "DELETE";
@@ -114,13 +104,44 @@ export async function clearStoredToken(): Promise<void> {
   await SecureStore.deleteItemAsync(TOKEN_KEY);
 }
 
+export async function getStoredActiveRole(): Promise<AppRole | null> {
+  const value =
+    Platform.OS === "web"
+      ? typeof localStorage === "undefined"
+        ? null
+        : localStorage.getItem(ACTIVE_ROLE_KEY)
+      : await SecureStore.getItemAsync(ACTIVE_ROLE_KEY);
+
+  return value === "customer" || value === "vendor" ? value : null;
+}
+
+export async function storeActiveRole(role: AppRole): Promise<void> {
+  if (Platform.OS === "web") {
+    localStorage.setItem(ACTIVE_ROLE_KEY, role);
+    return;
+  }
+
+  await SecureStore.setItemAsync(ACTIVE_ROLE_KEY, role);
+}
+
+export async function clearStoredActiveRole(): Promise<void> {
+  if (Platform.OS === "web") {
+    localStorage.removeItem(ACTIVE_ROLE_KEY);
+    return;
+  }
+
+  await SecureStore.deleteItemAsync(ACTIVE_ROLE_KEY);
+}
+
 export const authApi = {
   register(payload: {
     name: string;
     email: string;
     password: string;
     password_confirmation: string;
-    role: Exclude<UserRole, "admin">;
+    roles: Exclude<UserRole, "admin">[];
+    latitude: number;
+    longitude: number;
   }) {
     return request<AuthPayload>("/register", {
       method: "POST",
@@ -129,6 +150,10 @@ export const authApi = {
         device_name: `${Platform.OS} app`,
       },
     });
+  },
+
+  addRole(role: Exclude<UserRole, "admin">, token: string) {
+    return request<AuthUser>(`/roles/${role}`, { method: "POST", token });
   },
 
   login(payload: { email: string; password: string }) {

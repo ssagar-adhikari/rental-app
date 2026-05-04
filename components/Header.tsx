@@ -1,14 +1,29 @@
 import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SearchBar } from "@/components/SearchBar";
 import { Colors, Radius, Spacing, Typography } from "@/constants/theme";
+import { useUserLocation } from "@/context/LocationContext";
 
 export default function Header() {
+  const { location, loading } = useUserLocation();
+  const locationLabel = loading && !location ? "Detecting location..." : location?.label ?? "Set location";
+
   return (
     <View style={styles.header}>
       <View style={styles.top}>
         <View>
-          <Text style={styles.location}>Kathmandu</Text>
+          <TouchableOpacity
+            activeOpacity={0.78}
+            style={styles.locationButton}
+            onPress={() => router.push("/location-picker")}
+          >
+            <Ionicons name="location-outline" size={15} color="rgba(255,255,255,0.78)" />
+            <Text style={styles.location} numberOfLines={1}>
+              {locationLabel}
+            </Text>
+            <Ionicons name="chevron-down" size={14} color="rgba(255,255,255,0.78)" />
+          </TouchableOpacity>
           <Text style={styles.title}>Find your next place</Text>
         </View>
 
@@ -71,8 +86,16 @@ const styles = StyleSheet.create({
   },
   location: {
     color: "rgba(255,255,255,0.72)",
-    marginBottom: Spacing.xs,
+    maxWidth: 170,
     ...Typography.label,
+  },
+  locationButton: {
+    alignItems: "center",
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    gap: 5,
+    marginBottom: Spacing.xs,
+    maxWidth: 220,
   },
   title: {
     color: "white",

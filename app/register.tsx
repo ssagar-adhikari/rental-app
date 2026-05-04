@@ -5,8 +5,10 @@ import { Ionicons } from "@expo/vector-icons";
 import { Screen } from "@/components/Screen";
 import { Colors, Radius, Shadows, Spacing, Typography } from "@/constants/theme";
 import { useAuth } from "@/context/AuthContext";
+import { useUserLocation } from "@/context/LocationContext";
 import { ApiError } from "@/services/authApi";
 import type { UserRole } from "@/types/auth";
+import { getPostAuthRoute } from "@/utils/authRoutes";
 
 type RegisterRole = Exclude<UserRole, "admin">;
 
@@ -16,8 +18,9 @@ const roles: { label: string; value: RegisterRole; icon: keyof typeof Ionicons.g
 ];
 
 export default function RegisterScreen() {
-  const { register } = useAuth();
-  const [role, setRole] = useState<RegisterRole>("customer");
+  const { activeRole, register } = useAuth();
+  const { location } = useUserLocation();
+  const [selectedRoles, setSelectedRoles] = useState<RegisterRole[]>(["customer"]);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -25,19 +28,36 @@ export default function RegisterScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  function toggleRole(role: RegisterRole) {
+    setSelectedRoles((current) => {
+      if (current.includes(role)) {
+        return current.length === 1 ? current : current.filter((item) => item !== role);
+      }
+
+      return [...current, role];
+    });
+  }
+
   async function submit() {
     setLoading(true);
     setError(null);
 
     try {
-      await register({
+      if (!location || location.source !== "manual") {
+        setError("Please set your location from the map before creating an account.");
+        return;
+      }
+
+      const user = await register({
         name,
         email,
         password,
         password_confirmation: passwordConfirmation,
-        role,
+        roles: selectedRoles,
+        latitude: location.latitude,
+        longitude: location.longitude,
       });
-      router.replace("/(tabs)/profile");
+      router.replace(getPostAuthRoute(user, activeRole));
     } catch (exception) {
       setError(exception instanceof ApiError ? exception.message : "Unable to create account.");
     } finally {
@@ -72,7 +92,7 @@ export default function RegisterScreen() {
               </View>
               <View style={styles.cardTitleText}>
                 <Text style={styles.cardTitle}>Account details</Text>
-                <Text style={styles.cardSubtitle}>Choose your role and add your sign-in details.</Text>
+                <Text style={styles.cardSubtitle}>Choose one or more roles and add your sign-in details.</Text>
               </View>
             </View>
 
@@ -80,14 +100,14 @@ export default function RegisterScreen() {
               <Text style={styles.fieldLabel}>Account type</Text>
               <View style={styles.roleRow}>
                 {roles.map((item) => {
-                  const selected = role === item.value;
+                  const selected = selectedRoles.includes(item.value);
 
                   return (
                     <TouchableOpacity
                       activeOpacity={0.85}
                       key={item.value}
                       style={[styles.roleButton, selected && styles.selectedRole]}
-                      onPress={() => setRole(item.value)}
+                      onPress={() => toggleRole(item.value)}
                     >
                       <View style={[styles.roleIcon, selected && styles.selectedRoleIcon]}>
                         <Ionicons name={item.icon} size={20} color={selected ? "white" : Colors.light.primary} />
@@ -101,6 +121,30 @@ export default function RegisterScreen() {
             </View>
 
             <View style={styles.form}>
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>Location</Text>
+                <TouchableOpacity
+                  activeOpacity={0.86}
+                  style={[styles.locationSelector, location?.source === "manual" && styles.selectedLocationSelector]}
+                  onPress={() => router.push("/location-picker" as Href)}
+                >
+                  <View style={styles.locationIcon}>
+                    <Ionicons name="location-outline" size={20} color={Colors.light.primary} />
+                  </View>
+                  <View style={styles.locationTextWrap}>
+                    <Text style={styles.locationTitle}>
+                      {location?.source === "manual" ? location.label : "Set location on map"}
+                    </Text>
+                    <Text style={styles.locationSubtitle}>
+                      {location?.source === "manual"
+                        ? `${location.latitude.toFixed(5)}, ${location.longitude.toFixed(5)}`
+                        : "Required for registration"}
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color={Colors.light.primary} />
+                </TouchableOpacity>
+              </View>
+
               <View style={styles.fieldGroup}>
                 <Text style={styles.fieldLabel}>Full name</Text>
                 <View style={styles.inputShell}>
@@ -348,6 +392,41 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 0,
     ...Typography.body,
+  },
+  locationSelector: {
+    alignItems: "center",
+    backgroundColor: "#FBFCFF",
+    borderColor: Colors.light.border,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: Spacing.md,
+    minHeight: 66,
+    paddingHorizontal: Spacing.md,
+  },
+  selectedLocationSelector: {
+    borderColor: Colors.light.primary,
+  },
+  locationIcon: {
+    alignItems: "center",
+    backgroundColor: Colors.light.surfaceMuted,
+    borderRadius: Radius.sm,
+    height: 40,
+    justifyContent: "center",
+    width: 40,
+  },
+  locationTextWrap: {
+    flex: 1,
+  },
+  locationTitle: {
+    color: Colors.light.text,
+    ...Typography.label,
+    fontWeight: "900",
+  },
+  locationSubtitle: {
+    color: Colors.light.muted,
+    marginTop: 2,
+    ...Typography.eyebrow,
   },
   submitButton: {
     alignItems: "center",

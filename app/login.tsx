@@ -6,9 +6,10 @@ import { Screen } from "@/components/Screen";
 import { Colors, Radius, Shadows, Spacing, Typography } from "@/constants/theme";
 import { useAuth } from "@/context/AuthContext";
 import { ApiError } from "@/services/authApi";
+import { getPostAuthRoute } from "@/utils/authRoutes";
 
 export default function LoginScreen() {
-  const { login, verifyTwoFactor } = useAuth();
+  const { activeRole, login, verifyTwoFactor } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
@@ -22,8 +23,8 @@ export default function LoginScreen() {
 
     try {
       if (challengeToken) {
-        await verifyTwoFactor(email, challengeToken, code);
-        router.replace("/(tabs)/profile");
+        const user = await verifyTwoFactor(email, challengeToken, code);
+        router.replace(getPostAuthRoute(user, activeRole));
         return;
       }
 
@@ -34,7 +35,7 @@ export default function LoginScreen() {
         return;
       }
 
-      router.replace("/(tabs)/profile");
+      router.replace(getPostAuthRoute(response.user, activeRole));
     } catch (exception) {
       setError(exception instanceof ApiError ? exception.message : "Unable to sign in.");
     } finally {

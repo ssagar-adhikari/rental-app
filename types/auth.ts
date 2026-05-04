@@ -6,6 +6,8 @@ export type AuthUser = {
   email: string;
   email_verified: boolean;
   status: boolean;
+  latitude: number | null;
+  longitude: number | null;
   roles: UserRole[];
   permissions: string[];
   two_factor_enabled: boolean;
