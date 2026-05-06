@@ -43,7 +43,7 @@ export default function RoomCard({ item, cardStyle }: RoomCardProps) {
             {priceAmount}
           </Text>
           <Text style={styles.priceUnit} numberOfLines={1}>
-            /{priceUnit || "month"}
+            {priceUnit ? `/${priceUnit}` : ""}
           </Text>
         </View>
 

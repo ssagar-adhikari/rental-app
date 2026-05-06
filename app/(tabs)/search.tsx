@@ -6,8 +6,8 @@ import { AppHeader } from "@/components/AppHeader";
 import { Screen } from "@/components/Screen";
 import { SectionHeader } from "@/components/SectionHeader";
 import { Colors, Radius, Shadows, Spacing, Typography } from "@/constants/theme";
-import { categories } from "@/data/categories";
-import { rooms } from "@/data/mockData";
+import { useCategories } from "@/context/CategoriesContext";
+import { useListings } from "@/context/ListingsContext";
 import type { RentalListing } from "@/types/rental";
 
 const recentSearches = ["Apartment in Kathmandu", "Studio Room", "Luxury Flat", "Family House"];
@@ -15,11 +15,14 @@ const popularSearches = ["Rooms under 15000", "Parking Available", "Near Bus Par
 
 export default function SearchScreen() {
   const router = useRouter();
+  const { rentalListings } = useListings();
+  const { categories } = useCategories();
   const [searchText, setSearchText] = useState("");
   const [isFocused, setIsFocused] = useState(false);
+  const listings = rentalListings;
 
-  const handleCategoryPress = (categoryName: string) => {
-    router.push(`/service-list?categoryId=1&categoryName=${categoryName}`);
+  const handleCategoryPress = (categoryId: number, categoryName: string) => {
+    router.push(`/service-list?categoryId=${categoryId}&categoryName=${categoryName}`);
   };
 
   const handleServicePress = (serviceId: number) => {
@@ -84,7 +87,7 @@ export default function SearchScreen() {
           <SectionHeader title="Browse Categories" actionLabel="" />
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoriesContainer}>
             {categories.map((category) => (
-              <TouchableOpacity key={category.id} style={styles.categoryCard} onPress={() => handleCategoryPress(category.name)}>
+              <TouchableOpacity key={category.id} style={styles.categoryCard} onPress={() => handleCategoryPress(category.id, category.name)}>
                 <View style={styles.categoryImageContainer}>
                   <Image source={{ uri: category.image }} style={styles.categoryImage} />
                 </View>
@@ -97,7 +100,7 @@ export default function SearchScreen() {
         <View style={styles.section}>
           <SectionHeader title="Featured Listings" />
           <FlatList
-            data={rooms}
+            data={listings}
             horizontal
             showsHorizontalScrollIndicator={false}
             keyExtractor={(item) => item.id.toString()}
@@ -108,7 +111,7 @@ export default function SearchScreen() {
 
         <View style={[styles.section, styles.lastSection]}>
           <SectionHeader title="Nearby Recommendations" />
-          {rooms.slice(0, 3).map((item) => (
+          {listings.slice(0, 3).map((item) => (
             <TouchableOpacity key={item.id} style={styles.nearbyCard} onPress={() => handleServicePress(item.id)}>
               <Image source={{ uri: item.image }} style={styles.nearbyImage} />
               <View style={styles.nearbyInfo}>

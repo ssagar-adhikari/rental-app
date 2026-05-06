@@ -5,10 +5,15 @@ import RoomCard from "@/components/RoomCard";
 import { Screen } from "@/components/Screen";
 import { SectionHeader } from "@/components/SectionHeader";
 import { Spacing } from "@/constants/theme";
-import { categories, rooms, trendings } from "@/data/mockData";
+import { useCategories } from "@/context/CategoriesContext";
+import { useListings } from "@/context/ListingsContext";
 import type { RentalListing } from "@/types/rental";
 
 export default function HomeScreen() {
+  const { rentalListings } = useListings();
+  const { categories } = useCategories();
+  const trendingListings = [...rentalListings].sort((a, b) => b.rating - a.rating);
+
   const renderHorizontalRoomCard = ({ item }: { item: RentalListing }) => (
     <RoomCard item={item} cardStyle={styles.horizontalRoomCard} />
   );
@@ -35,7 +40,7 @@ export default function HomeScreen() {
           <FlatList
             horizontal
             showsHorizontalScrollIndicator={false}
-            data={rooms}
+            data={rentalListings}
             keyExtractor={(item) => item.id.toString()}
             renderItem={renderHorizontalRoomCard}
             contentContainerStyle={styles.horizontalListContent}
@@ -47,7 +52,7 @@ export default function HomeScreen() {
           <FlatList
             horizontal
             showsHorizontalScrollIndicator={false}
-            data={trendings}
+            data={trendingListings}
             keyExtractor={(item) => item.id.toString()}
             renderItem={renderHorizontalRoomCard}
             contentContainerStyle={styles.horizontalListContent}

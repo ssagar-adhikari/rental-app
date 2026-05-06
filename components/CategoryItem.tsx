@@ -8,6 +8,8 @@ import type { Category } from "@/types/rental";
 export default function CategoryItem({ item }: { item: Category }) {
   const router = useRouter();
   const meta = CATEGORY_META[item.name] ?? DEFAULT_CATEGORY_META;
+  const listingCount = item.listing_count;
+  const countLabel = typeof listingCount === "number" ? `${listingCount} listings` : meta.count;
 
   return (
     <TouchableOpacity
@@ -31,7 +33,7 @@ export default function CategoryItem({ item }: { item: Category }) {
             <Ionicons name="chevron-forward" size={14} color={Colors.light.primary} />
           </View>
         </View>
-        <Text style={styles.count}>{meta.count}</Text>
+        <Text style={styles.count}>{countLabel}</Text>
       </View>
     </TouchableOpacity>
   );

@@ -1,7 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Animated,
   Dimensions,
   Image,
@@ -15,13 +16,15 @@ import MapView from "react-native-maps/lib/MapView";
 import Marker from "react-native-maps/lib/MapMarker";
 import { PROVIDER_GOOGLE } from "react-native-maps/lib/ProviderConstants";
 import { Colors, Radius, Shadows, Spacing, Typography } from "../constants/theme";
-import { rooms } from "../data/mockData";
+import { useListings } from "../context/ListingsContext";
+import { getListingImage, mapApiListingToRentalListing } from "../services/listingApi";
+import type { ApiListing } from "../types/rental";
 
 const { width: screenWidth } = Dimensions.get("window");
 const HERO_HEIGHT = 360;
 const COLORS = Colors.light;
 
-const serviceImages = [
+const fallbackServiceImages = [
   "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?q=80&w=1000",
   "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?q=80&w=1000",
   "https://images.unsplash.com/photo-1484154218962-a197022b5858?q=80&w=1000",
@@ -46,12 +49,65 @@ const contactItems = [
 export default function ServiceDetailScreen() {
   const { serviceId } = useLocalSearchParams();
   const router = useRouter();
-  const service = rooms.find((item) => item.id.toString() === serviceId) || rooms[0];
+  const { listings, loadListing } = useListings();
+  const selectedId = Number(Array.isArray(serviceId) ? serviceId[0] : serviceId);
+  const cachedListing = listings.find((item) => item.id === selectedId);
+  const [detailListing, setDetailListing] = useState<ApiListing | null>(cachedListing ?? null);
+  const [loadingListing, setLoadingListing] = useState(!cachedListing && Number.isFinite(selectedId) && selectedId > 0);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const service = detailListing ? mapApiListingToRentalListing(detailListing) : null;
+  const serviceImages = useMemo(() => {
+    if (!detailListing) {
+      return [];
+    }
+
+    const mediaUrls = detailListing?.media?.map((item) => item.url).filter((url): url is string => Boolean(url)) ?? [];
+
+    return mediaUrls.length ? mediaUrls : [getListingImage(detailListing), ...fallbackServiceImages].slice(0, 5);
+  }, [detailListing]);
 
   const [isFavorite, setIsFavorite] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const scrollX = useRef(new Animated.Value(0)).current;
-  const [priceAmount, priceUnit] = service.price.split("/").map((value) => value.trim());
+  const [priceAmount, priceUnit] = (service?.price ?? "").split("/").map((value) => value.trim());
+  const ownerName = detailListing?.owner?.name ?? "Property Owner";
+  const ownerEmail = detailListing?.owner?.email ?? "contact@example.com";
+  const listingLocation = detailListing?.primary_location ?? detailListing?.locations?.[0];
+  const latitude = Number(listingLocation?.latitude ?? 27.7172);
+  const longitude = Number(listingLocation?.longitude ?? 85.324);
+
+  useEffect(() => {
+    if (!Number.isFinite(selectedId) || selectedId <= 0) {
+      setLoadingListing(false);
+      setLoadError("Invalid listing.");
+      return;
+    }
+
+    let mounted = true;
+    setLoadingListing(true);
+    setLoadError(null);
+
+    loadListing(selectedId)
+      .then((listing) => {
+        if (mounted) {
+          setDetailListing(listing);
+        }
+      })
+      .catch((exception) => {
+        if (mounted) {
+          setLoadError(exception instanceof Error ? exception.message : "Unable to load listing.");
+        }
+      })
+      .finally(() => {
+        if (mounted) {
+          setLoadingListing(false);
+        }
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [loadListing, selectedId]);
 
   const onScroll = Animated.event(
     [{ nativeEvent: { contentOffset: { x: scrollX } } }],
@@ -63,6 +119,26 @@ export default function ServiceDetailScreen() {
       <Image source={{ uri: item }} style={styles.sliderImage} />
     </View>
   );
+
+  if (!service) {
+    return (
+      <View style={[styles.container, styles.center]}>
+        {loadingListing ? (
+          <ActivityIndicator color={COLORS.primary} />
+        ) : (
+          <>
+            <Ionicons name="alert-circle-outline" size={32} color={COLORS.primary} />
+            <Text style={styles.emptyTitle}>Listing unavailable</Text>
+            <Text style={styles.emptyText}>{loadError ?? "This listing could not be found."}</Text>
+            <TouchableOpacity activeOpacity={0.85} style={styles.emptyButton} onPress={() => router.back()}>
+              <Ionicons name="arrow-back" size={18} color="white" />
+              <Text style={styles.emptyButtonText}>Go Back</Text>
+            </TouchableOpacity>
+          </>
+        )}
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -151,7 +227,7 @@ export default function ServiceDetailScreen() {
 
           <View style={styles.priceRow}>
             <Text style={styles.priceAmount}>{priceAmount}</Text>
-            <Text style={styles.priceUnit}>/{priceUnit || "month"}</Text>
+            <Text style={styles.priceUnit}>{priceUnit ? `/${priceUnit}` : ""}</Text>
           </View>
         </View>
 
@@ -200,7 +276,7 @@ export default function ServiceDetailScreen() {
               <Ionicons name="person" size={25} color={COLORS.primary} />
             </View>
             <View style={styles.ownerInfo}>
-              <Text style={styles.ownerName}>Property Owner</Text>
+              <Text style={styles.ownerName}>{ownerName}</Text>
               <Text style={styles.ownerMeta}>Verified seller · Usually replies fast</Text>
             </View>
             <View style={styles.ownerBadge}>
@@ -212,7 +288,7 @@ export default function ServiceDetailScreen() {
             {contactItems.map((item) => (
               <View key={item.label} style={styles.contactRow}>
                 <Ionicons name={item.icon} size={20} color={COLORS.primary} />
-                <Text style={styles.contactText}>{item.label}</Text>
+                <Text style={styles.contactText}>{item.icon === "mail-outline" ? ownerEmail : item.label}</Text>
               </View>
             ))}
           </View>
@@ -235,16 +311,16 @@ export default function ServiceDetailScreen() {
               style={styles.map}
               provider={PROVIDER_GOOGLE}
               initialRegion={{
-                latitude: 27.7172,
-                longitude: 85.324,
+                latitude,
+                longitude,
                 latitudeDelta: 0.015,
                 longitudeDelta: 0.015,
               }}
             >
               <Marker
                 coordinate={{
-                  latitude: 27.7172,
-                  longitude: 85.324,
+                  latitude,
+                  longitude,
                 }}
                 title={service.title}
                 description={service.location}
@@ -257,7 +333,7 @@ export default function ServiceDetailScreen() {
       <View style={styles.bottomBar}>
         <View style={styles.bottomPrice}>
           <Text style={styles.bottomPriceAmount}>{priceAmount}</Text>
-          <Text style={styles.bottomPriceUnit}>/{priceUnit || "month"}</Text>
+          <Text style={styles.bottomPriceUnit}>{priceUnit ? `/${priceUnit}` : ""}</Text>
         </View>
         <TouchableOpacity style={styles.messageBtn}>
           <Ionicons name="chatbubble-outline" size={20} color={COLORS.primary} />
@@ -274,6 +350,37 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
+  },
+  center: {
+    alignItems: "center",
+    justifyContent: "center",
+    padding: Spacing.xl,
+  },
+  emptyTitle: {
+    color: COLORS.text,
+    marginTop: Spacing.md,
+    ...Typography.sectionTitle,
+  },
+  emptyText: {
+    color: COLORS.muted,
+    marginTop: Spacing.sm,
+    textAlign: "center",
+    ...Typography.body,
+  },
+  emptyButton: {
+    alignItems: "center",
+    backgroundColor: COLORS.primary,
+    borderRadius: Radius.md,
+    flexDirection: "row",
+    gap: Spacing.sm,
+    marginTop: Spacing.xl,
+    minHeight: 46,
+    paddingHorizontal: Spacing.lg,
+  },
+  emptyButtonText: {
+    color: "white",
+    ...Typography.label,
+    fontWeight: "900",
   },
   contentContainer: {
     paddingBottom: 126,

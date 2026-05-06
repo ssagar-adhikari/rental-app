@@ -18,9 +18,9 @@ const ACTIVE_ROLE_KEY = "rental_marketplace_active_role";
 const REQUEST_TIMEOUT_MS = 15000;
 type AppRole = Exclude<UserRole, "admin">;
 
-type RequestOptions = {
-  method?: "GET" | "POST" | "DELETE";
-  body?: Record<string, unknown>;
+export type RequestOptions = {
+  method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+  body?: unknown;
   token?: string | null;
 };
 
@@ -34,7 +34,7 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const headers: Record<string, string> = {
     Accept: "application/json",
   };
@@ -143,7 +143,7 @@ export const authApi = {
     latitude: number;
     longitude: number;
   }) {
-    return request<AuthPayload>("/register", {
+    return apiRequest<AuthPayload>("/register", {
       method: "POST",
       body: {
         ...payload,
@@ -153,11 +153,11 @@ export const authApi = {
   },
 
   addRole(role: Exclude<UserRole, "admin">, token: string) {
-    return request<AuthUser>(`/roles/${role}`, { method: "POST", token });
+    return apiRequest<AuthUser>(`/roles/${role}`, { method: "POST", token });
   },
 
   login(payload: { email: string; password: string }) {
-    return request<LoginResponse>("/login", {
+    return apiRequest<LoginResponse>("/login", {
       method: "POST",
       body: {
         ...payload,
@@ -167,7 +167,7 @@ export const authApi = {
   },
 
   verifyTwoFactor(payload: { email: string; challenge_token: string; code: string }) {
-    return request<AuthPayload & { requires_two_factor: false }>("/2fa/verify", {
+    return apiRequest<AuthPayload & { requires_two_factor: false }>("/2fa/verify", {
       method: "POST",
       body: {
         ...payload,
@@ -177,15 +177,15 @@ export const authApi = {
   },
 
   me(token: string) {
-    return request<AuthUser>("/user", { token });
+    return apiRequest<AuthUser>("/user", { token });
   },
 
   logout(token: string) {
-    return request<null>("/logout", { method: "POST", token });
+    return apiRequest<null>("/logout", { method: "POST", token });
   },
 
   forgotPassword(email: string) {
-    return request<null>("/password/forgot", {
+    return apiRequest<null>("/password/forgot", {
       method: "POST",
       body: { email },
     });
@@ -197,17 +197,17 @@ export const authApi = {
     password: string;
     password_confirmation: string;
   }) {
-    return request<null>("/password/reset", {
+    return apiRequest<null>("/password/reset", {
       method: "POST",
       body: payload,
     });
   },
 
   enableTwoFactor(token: string) {
-    return request<null>("/2fa/enable", { method: "POST", token });
+    return apiRequest<null>("/2fa/enable", { method: "POST", token });
   },
 
   disableTwoFactor(token: string) {
-    return request<null>("/2fa/disable", { method: "POST", token });
+    return apiRequest<null>("/2fa/disable", { method: "POST", token });
   },
 };

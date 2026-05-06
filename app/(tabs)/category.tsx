@@ -1,20 +1,21 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useMemo, useState } from "react";
-import { FlatList, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, View } from "react-native";
 import { AppHeader } from "@/components/AppHeader";
 import CategoryItem from "@/components/CategoryItem";
 import { Screen } from "@/components/Screen";
 import { Colors, Radius, Spacing, Typography } from "@/constants/theme";
-import { categories } from "@/data/categories";
+import { useCategories } from "@/context/CategoriesContext";
 import type { Category } from "@/types/rental";
 
 export default function CategoryScreen() {
+  const { categories, loading, refreshCategories } = useCategories();
   const [searchText, setSearchText] = useState("");
 
   const filteredCategories = useMemo(() => {
     const query = searchText.trim().toLowerCase();
     return query ? categories.filter((item) => item.name.toLowerCase().includes(query)) : categories;
-  }, [searchText]);
+  }, [categories, searchText]);
 
   return (
     <Screen>
@@ -59,12 +60,19 @@ export default function CategoryScreen() {
           </View>
         }
         ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <Ionicons name="search-outline" size={30} color={Colors.light.primary} />
-            <Text style={styles.emptyTitle}>No category found</Text>
-            <Text style={styles.emptyText}>Try a different keyword.</Text>
-          </View>
+          loading ? (
+            <View style={styles.emptyState}>
+              <ActivityIndicator color={Colors.light.primary} />
+            </View>
+          ) : (
+            <View style={styles.emptyState}>
+              <Ionicons name="search-outline" size={30} color={Colors.light.primary} />
+              <Text style={styles.emptyTitle}>No category found</Text>
+              <Text style={styles.emptyText}>Try a different keyword.</Text>
+            </View>
+          )
         }
+        refreshControl={<RefreshControl refreshing={loading} tintColor={Colors.light.primary} onRefresh={refreshCategories} />}
       />
     </Screen>
   );

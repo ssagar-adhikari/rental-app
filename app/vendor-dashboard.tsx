@@ -1,10 +1,12 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Redirect, router, type Href } from "expo-router";
+import { useEffect } from "react";
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { AppHeader } from "@/components/AppHeader";
 import { Screen } from "@/components/Screen";
 import { Colors, Radius, Shadows, Spacing, Typography } from "@/constants/theme";
 import { useAuth } from "@/context/AuthContext";
+import { useListings } from "@/context/ListingsContext";
 
 type Metric = {
   icon: keyof typeof Ionicons.glyphMap;
@@ -19,22 +21,29 @@ type Action = {
   onPress: () => void;
 };
 
-const metrics: Metric[] = [
-  { icon: "home-outline", label: "Listings", value: "0", color: Colors.light.primary },
-  { icon: "calendar-outline", label: "Bookings", value: "0", color: Colors.light.success },
-  { icon: "cash-outline", label: "Revenue", value: "Rs 0", color: Colors.light.warning },
-  { icon: "chatbubble-ellipses-outline", label: "Messages", value: "0", color: "#7C3AED" },
-];
-
-const actions: Action[] = [
-  { icon: "add-circle-outline", label: "Add Listing", onPress: () => null },
-  { icon: "calendar-number-outline", label: "Manage Bookings", onPress: () => null },
-  { icon: "wallet-outline", label: "Payouts", onPress: () => null },
-  { icon: "person-outline", label: "Profile", onPress: () => router.push("/(tabs)/profile" as Href) },
-];
-
 export default function VendorDashboardScreen() {
   const { user, loading, logout, selectRole } = useAuth();
+  const { refreshVendorListings, vendorListings, vendorLoading } = useListings();
+  const activeListingCount = vendorListings.filter((listing) => listing.status !== "archived").length;
+  const pendingListingCount = vendorListings.filter((listing) => listing.status === "pending").length;
+
+  const metrics: Metric[] = [
+    { icon: "home-outline", label: "Listings", value: vendorLoading ? "..." : String(activeListingCount), color: Colors.light.primary },
+    { icon: "time-outline", label: "Pending", value: vendorLoading ? "..." : String(pendingListingCount), color: Colors.light.warning },
+    { icon: "calendar-outline", label: "Bookings", value: "0", color: Colors.light.success },
+    { icon: "cash-outline", label: "Revenue", value: "Rs 0", color: "#7C3AED" },
+  ];
+
+  const actions: Action[] = [
+    { icon: "add-circle-outline", label: "Add Listing", onPress: () => router.push("/vendor-listing-form" as Href) },
+    { icon: "list-outline", label: "Manage Listings", onPress: () => router.push("/vendor-listings" as Href) },
+    { icon: "calendar-number-outline", label: "Manage Bookings", onPress: () => null },
+    { icon: "person-outline", label: "Profile", onPress: () => router.push("/(tabs)/profile" as Href) },
+  ];
+
+  useEffect(() => {
+    refreshVendorListings();
+  }, [refreshVendorListings]);
 
   if (loading) {
     return (

@@ -8,6 +8,8 @@ import type { Category } from "@/types/rental";
 export default function CategoryCard({ item }: { item: Category }) {
   const router = useRouter();
   const meta = CATEGORY_META[item.title] ?? DEFAULT_CATEGORY_META;
+  const listingCount = item.listing_count;
+  const countLabel = typeof listingCount === "number" ? `${listingCount} listings` : meta.count;
 
   return (
     <TouchableOpacity
@@ -25,7 +27,7 @@ export default function CategoryCard({ item }: { item: Category }) {
         <Text style={styles.text} numberOfLines={1}>
           {item.title}
         </Text>
-        <Text style={styles.count}>{meta.count}</Text>
+        <Text style={styles.count}>{countLabel}</Text>
       </View>
     </TouchableOpacity>
   );

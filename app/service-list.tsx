@@ -1,10 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
-import { FlatList, Image, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, FlatList, Image, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import RoomCard from "../components/RoomCard";
 import { Colors } from "../constants/theme";
-import { rooms } from "../data/mockData";
+import { useListings } from "../context/ListingsContext";
 import type { RentalListing } from "../types/rental";
 
 const COLORS = Colors.light;
@@ -20,7 +20,7 @@ function ServiceGridCard({ item, onPress }: { item: RentalListing; onPress: () =
 
         <View style={styles.gridRatingBadge}>
           <Ionicons name="star" size={11} color="#F59E0B" />
-          <Text style={styles.gridRatingText}>4.8</Text>
+          <Text style={styles.gridRatingText}>{item.rating.toFixed(1)}</Text>
         </View>
 
         <TouchableOpacity activeOpacity={0.75} style={styles.gridHeartBtn}>
@@ -57,7 +57,7 @@ function ServiceGridCard({ item, onPress }: { item: RentalListing; onPress: () =
               {priceAmount}
             </Text>
             <Text style={styles.gridPriceUnit} numberOfLines={1}>
-              /{priceUnit || "month"}
+              {priceUnit ? `/${priceUnit}` : ""}
             </Text>
           </View>
           <View style={styles.gridArrowBtn}>
@@ -71,12 +71,17 @@ function ServiceGridCard({ item, onPress }: { item: RentalListing; onPress: () =
 
 export default function ServiceListScreen() {
   const { categoryName } = useLocalSearchParams();
+  const { categoryId } = useLocalSearchParams();
   const router = useRouter();
+  const { listings, loading, rentalListings } = useListings();
   const [viewMode, setViewMode] = useState<"grid" | "row">("grid");
   const categoryTitle = Array.isArray(categoryName) ? categoryName[0] : categoryName;
+  const selectedCategoryId = Number(Array.isArray(categoryId) ? categoryId[0] : categoryId);
 
-  // Filter services based on category (for now showing all rooms)
-  const services = rooms;
+  const services =
+    Number.isFinite(selectedCategoryId) && selectedCategoryId > 0
+      ? rentalListings.filter((listing) => listings.some((item) => item.id === listing.id && item.category?.id === selectedCategoryId))
+      : rentalListings;
 
   const renderItem = ({ item }: { item: RentalListing }) => {
     if (viewMode === "grid") {
@@ -161,6 +166,19 @@ export default function ServiceListScreen() {
           viewMode === "grid" ? styles.gridContent : styles.listContent,
         ]}
         showsVerticalScrollIndicator={false}
+        ListEmptyComponent={
+          loading ? (
+            <View style={styles.emptyState}>
+              <ActivityIndicator color={COLORS.primary} />
+            </View>
+          ) : (
+            <View style={styles.emptyState}>
+              <Ionicons name="home-outline" size={30} color={COLORS.primary} />
+              <Text style={styles.emptyTitle}>No listings found</Text>
+              <Text style={styles.emptyText}>Try another category or search again later.</Text>
+            </View>
+          )
+        }
       />
     </View>
   );
@@ -426,5 +444,23 @@ const styles = StyleSheet.create({
   rowCard: {
     width: "100%",
     marginRight: 0,
+  },
+  emptyState: {
+    alignItems: "center",
+    paddingHorizontal: 24,
+    paddingVertical: 48,
+  },
+  emptyTitle: {
+    color: COLORS.text,
+    fontSize: 17,
+    fontWeight: "900",
+    marginTop: 10,
+  },
+  emptyText: {
+    color: COLORS.muted,
+    fontSize: 13,
+    fontWeight: "600",
+    marginTop: 4,
+    textAlign: "center",
   },
 });
