@@ -48,8 +48,6 @@ components/
   CategoryCard.tsx         Horizontal category card
   CategoryItem.tsx         Grid category card
   RoomCard.tsx             Rental listing card
-  themed-text.tsx          Theme-aware text helper
-  themed-view.tsx          Theme-aware view helper
 
 constants/
   theme.ts                 Design tokens
