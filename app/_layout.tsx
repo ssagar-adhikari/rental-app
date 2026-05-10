@@ -1,6 +1,5 @@
 import { useEffect } from "react";
 import { Stack, router, type Href } from "expo-router";
-import * as Notifications from "expo-notifications";
 import { AppState, StyleSheet } from "react-native";
 import type { AppStateStatus } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -15,11 +14,10 @@ import { ListingsProvider } from "@/context/ListingsContext";
 import { LocationProvider } from "@/context/LocationContext";
 import { NetworkProvider } from "@/context/NetworkContext";
 import { queryClient } from "@/lib/queryClient";
-import { configureForegroundHandler } from "@/utils/pushNotifications";
+import { configureForegroundHandler, registerPushResponseListener } from "@/utils/pushNotifications";
 import { initSentry } from "@/utils/sentry";
 
 initSentry();
-configureForegroundHandler();
 
 function onAppStateChange(status: AppStateStatus) {
   focusManager.setFocused(status === "active");
@@ -46,17 +44,17 @@ function resolveDeepLink(data: Record<string, unknown> | undefined): Href | null
 }
 
 function usePushTapHandler() {
-  const lastResponse = Notifications.useLastNotificationResponse();
-
   useEffect(() => {
-    const target = resolveDeepLink(
-      lastResponse?.notification.request.content.data as Record<string, unknown> | undefined,
-    );
+    configureForegroundHandler();
 
-    if (target) {
-      router.push(target);
-    }
-  }, [lastResponse]);
+    return registerPushResponseListener((data) => {
+      const target = resolveDeepLink(data);
+
+      if (target) {
+        router.push(target);
+      }
+    });
+  }, []);
 }
 
 export default function RootLayout() {

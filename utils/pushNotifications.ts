@@ -1,6 +1,5 @@
 import { Platform } from "react-native";
 import * as Device from "expo-device";
-import * as Notifications from "expo-notifications";
 import { Config } from "@/constants/config";
 import { pushApi } from "@/services/pushApi";
 import { logger } from "@/utils/logger";
@@ -10,25 +9,25 @@ export type PushCategory = "bookings" | "inbox" | "marketing";
 const ANDROID_CHANNELS: Array<{
   id: PushCategory;
   name: string;
-  importance: Notifications.AndroidImportance;
+  importance: "HIGH" | "DEFAULT" | "LOW";
   description: string;
 }> = [
   {
     id: "bookings",
     name: "Bookings",
-    importance: Notifications.AndroidImportance.HIGH,
+    importance: "HIGH",
     description: "Booking confirmations, reminders, and status changes.",
   },
   {
     id: "inbox",
     name: "Vendor Inbox",
-    importance: Notifications.AndroidImportance.DEFAULT,
+    importance: "DEFAULT",
     description: "Messages and updates from vendors.",
   },
   {
     id: "marketing",
     name: "Promotions",
-    importance: Notifications.AndroidImportance.LOW,
+    importance: "LOW",
     description: "Discounts, new listings, and seasonal offers.",
   },
 ];
@@ -36,21 +35,33 @@ const ANDROID_CHANNELS: Array<{
 let foregroundHandlerConfigured = false;
 let channelsConfigured = false;
 
+async function loadNotifications() {
+  return import("expo-notifications");
+}
+
 export function configureForegroundHandler(): void {
   if (foregroundHandlerConfigured) {
     return;
   }
 
-  Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldPlaySound: true,
-      shouldSetBadge: true,
-      shouldShowBanner: true,
-      shouldShowList: true,
-    }),
-  });
+  loadNotifications()
+    .then((Notifications) => {
+      Notifications.setNotificationHandler({
+        handleNotification: async () => ({
+          shouldPlaySound: true,
+          shouldSetBadge: true,
+          shouldShowBanner: true,
+          shouldShowList: true,
+        }),
+      });
 
-  foregroundHandlerConfigured = true;
+      foregroundHandlerConfigured = true;
+    })
+    .catch((error) => {
+      logger.warn("push", "Notifications module is unavailable; foreground handler was not configured.", {
+        message: error instanceof Error ? error.message : String(error),
+      });
+    });
 }
 
 export async function configureAndroidChannels(): Promise<void> {
@@ -58,10 +69,12 @@ export async function configureAndroidChannels(): Promise<void> {
     return;
   }
 
+  const Notifications = await loadNotifications();
+
   for (const channel of ANDROID_CHANNELS) {
     await Notifications.setNotificationChannelAsync(channel.id, {
       name: channel.name,
-      importance: channel.importance,
+      importance: Notifications.AndroidImportance[channel.importance],
       description: channel.description,
       sound: "default",
     });
@@ -71,6 +84,7 @@ export async function configureAndroidChannels(): Promise<void> {
 }
 
 async function ensurePermission(): Promise<boolean> {
+  const Notifications = await loadNotifications();
   const existing = await Notifications.getPermissionsAsync();
 
   if (existing.granted) {
@@ -102,16 +116,17 @@ export async function getExpoPushToken(): Promise<string | null> {
     return null;
   }
 
-  const granted = await ensurePermission();
-
-  if (!granted) {
-    logger.info("push", "Notification permission denied.");
-    return null;
-  }
-
-  await configureAndroidChannels();
-
   try {
+    const granted = await ensurePermission();
+
+    if (!granted) {
+      logger.info("push", "Notification permission denied.");
+      return null;
+    }
+
+    await configureAndroidChannels();
+
+    const Notifications = await loadNotifications();
     const result = await Notifications.getExpoPushTokenAsync({
       projectId: Config.easProjectId,
     });
@@ -121,6 +136,32 @@ export async function getExpoPushToken(): Promise<string | null> {
     logger.error("push", error);
     return null;
   }
+}
+
+export function registerPushResponseListener(onData: (data: Record<string, unknown> | undefined) => void) {
+  let active = true;
+  let subscription: { remove: () => void } | null = null;
+
+  loadNotifications()
+    .then((Notifications) => {
+      if (!active) {
+        return;
+      }
+
+      subscription = Notifications.addNotificationResponseReceivedListener((response) => {
+        onData(response.notification.request.content.data as Record<string, unknown> | undefined);
+      });
+    })
+    .catch((error) => {
+      logger.warn("push", "Notifications module is unavailable; tap listener was not registered.", {
+        message: error instanceof Error ? error.message : String(error),
+      });
+    });
+
+  return () => {
+    active = false;
+    subscription?.remove();
+  };
 }
 
 export async function syncPushTokenWithBackend(authToken: string): Promise<string | null> {
