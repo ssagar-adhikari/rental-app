@@ -43,7 +43,13 @@ export default function CategoryScreen() {
               <View style={styles.errorBox}>
                 <Ionicons name="alert-circle-outline" size={18} color={Colors.light.danger} />
                 <Text style={styles.errorText}>{error}</Text>
-                <TouchableOpacity activeOpacity={0.8} style={styles.retryButton} onPress={refreshCategories}>
+                <TouchableOpacity
+                  accessibilityLabel="Retry loading categories"
+                  accessibilityRole="button"
+                  activeOpacity={0.8}
+                  style={styles.retryButton}
+                  onPress={refreshCategories}
+                >
                   <Text style={styles.retryText}>Retry</Text>
                 </TouchableOpacity>
               </View>

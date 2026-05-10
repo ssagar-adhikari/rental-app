@@ -287,7 +287,13 @@ export default function ServiceDetailScreen() {
             <Ionicons name="alert-circle-outline" size={32} color={COLORS.primary} />
             <Text style={styles.emptyTitle}>Listing unavailable</Text>
             <Text style={styles.emptyText}>{loadError ?? "This listing could not be found."}</Text>
-            <TouchableOpacity activeOpacity={0.85} style={styles.emptyButton} onPress={() => router.back()}>
+            <TouchableOpacity
+              accessibilityLabel="Go back"
+              accessibilityRole="button"
+              activeOpacity={0.85}
+              style={styles.emptyButton}
+              onPress={() => router.back()}
+            >
               <Ionicons name="arrow-back" size={18} color="white" />
               <Text style={styles.emptyButtonText}>Go Back</Text>
             </TouchableOpacity>

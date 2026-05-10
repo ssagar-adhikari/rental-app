@@ -38,7 +38,12 @@ export default function ForgotPasswordScreen() {
   return (
     <Screen>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-        <Pressable style={styles.backButton} onPress={() => router.back()}>
+        <Pressable
+          accessibilityLabel="Go back"
+          accessibilityRole="button"
+          style={styles.backButton}
+          onPress={() => router.back()}
+        >
           <Ionicons name="arrow-back" size={22} color={Colors.light.text} />
         </Pressable>
 
@@ -50,6 +55,7 @@ export default function ForgotPasswordScreen() {
 
         <View style={styles.form}>
           <TextInput
+            accessibilityLabel="Email"
             autoCapitalize="none"
             autoComplete="email"
             keyboardType="email-address"
@@ -74,7 +80,14 @@ export default function ForgotPasswordScreen() {
             </View>
           ) : null}
 
-          <Pressable disabled={loading || !canSubmit} style={[styles.submitButton, (loading || !canSubmit) && styles.disabledButton]} onPress={submit}>
+          <Pressable
+            accessibilityLabel="Send reset link"
+            accessibilityRole="button"
+            accessibilityState={{ disabled: loading || !canSubmit, busy: loading }}
+            disabled={loading || !canSubmit}
+            style={[styles.submitButton, (loading || !canSubmit) && styles.disabledButton]}
+            onPress={submit}
+          >
             <Text style={styles.submitText}>{loading ? "Please wait..." : "Send reset link"}</Text>
           </Pressable>
         </View>

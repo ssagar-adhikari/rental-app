@@ -164,7 +164,14 @@ export default function VendorDashboardScreen() {
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, styles.sectionTitleSpacing]}>Vendor Tools</Text>
           {actions.map((action) => (
-            <TouchableOpacity activeOpacity={0.85} key={action.label} style={styles.actionRow} onPress={action.onPress}>
+            <TouchableOpacity
+              accessibilityLabel={action.label}
+              accessibilityRole="button"
+              activeOpacity={0.85}
+              key={action.label}
+              style={styles.actionRow}
+              onPress={action.onPress}
+            >
               <View style={styles.actionIcon}>
                 <Ionicons name={action.icon} size={20} color={Colors.light.primary} />
               </View>
@@ -177,7 +184,12 @@ export default function VendorDashboardScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeadingRow}>
             <Text style={styles.sectionTitle}>Recent Bookings</Text>
-            <TouchableOpacity activeOpacity={0.85} onPress={() => router.push("/vendor-bookings" as Href)}>
+            <TouchableOpacity
+              accessibilityLabel="View all bookings"
+              accessibilityRole="button"
+              activeOpacity={0.85}
+              onPress={() => router.push("/vendor-bookings" as Href)}
+            >
               <Text style={styles.sectionLink}>View all</Text>
             </TouchableOpacity>
           </View>
@@ -208,7 +220,13 @@ export default function VendorDashboardScreen() {
             : null}
         </View>
 
-        <TouchableOpacity activeOpacity={0.85} style={styles.logoutButton} onPress={logout}>
+        <TouchableOpacity
+          accessibilityLabel="Log out"
+          accessibilityRole="button"
+          activeOpacity={0.85}
+          style={styles.logoutButton}
+          onPress={logout}
+        >
           <Ionicons name="log-out-outline" size={20} color={Colors.light.danger} />
           <Text style={styles.logoutText}>Log Out</Text>
         </TouchableOpacity>

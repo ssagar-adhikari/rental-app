@@ -106,10 +106,20 @@ export default function ProfileScreen() {
             <Text style={styles.userName}>Sign in to continue</Text>
             <Text style={styles.userEmail}>Manage bookings, saved listings, and provider tools.</Text>
             <View style={styles.authActions}>
-              <TouchableOpacity style={styles.primaryAction} onPress={() => router.push("/login" as Href)}>
+              <TouchableOpacity
+                accessibilityLabel="Log in"
+                accessibilityRole="button"
+                style={styles.primaryAction}
+                onPress={() => router.push("/login" as Href)}
+              >
                 <Text style={styles.primaryActionText}>Log In</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.secondaryAction} onPress={() => router.push("/register" as Href)}>
+              <TouchableOpacity
+                accessibilityLabel="Register"
+                accessibilityRole="button"
+                style={styles.secondaryAction}
+                onPress={() => router.push("/register" as Href)}
+              >
                 <Text style={styles.secondaryActionText}>Register</Text>
               </TouchableOpacity>
             </View>
@@ -124,7 +134,7 @@ export default function ProfileScreen() {
                   source={{ uri: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=400" }}
                   style={styles.avatar}
                 />
-                <TouchableOpacity style={styles.editAvatarBtn}>
+                <TouchableOpacity accessibilityLabel="Change profile photo" accessibilityRole="button" style={styles.editAvatarBtn}>
                   <Ionicons name="camera" size={16} color="white" />
                 </TouchableOpacity>
               </View>
@@ -156,7 +166,14 @@ export default function ProfileScreen() {
                   <Text style={styles.membershipSubtitle}>{formatRoles(user.roles)}</Text>
                 </View>
               </View>
-              <TouchableOpacity disabled={securityBusy} style={styles.upgradeBtn} onPress={toggleTwoFactor}>
+              <TouchableOpacity
+                accessibilityLabel={user.two_factor_enabled ? "Disable two-factor authentication" : "Enable two-factor authentication"}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: securityBusy }}
+                disabled={securityBusy}
+                style={styles.upgradeBtn}
+                onPress={toggleTwoFactor}
+              >
                 <Text style={styles.upgradeBtnText}>{user.two_factor_enabled ? "Disable 2FA" : "Enable 2FA"}</Text>
               </TouchableOpacity>
             </View>
@@ -173,6 +190,9 @@ export default function ProfileScreen() {
 
                 <View style={styles.roleActionRow}>
                   <TouchableOpacity
+                    accessibilityLabel="Switch to customer mode"
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: activeRole === "customer" }}
                     activeOpacity={0.86}
                     style={[styles.roleActionButton, activeRole !== "customer" && styles.inactiveRoleAction]}
                     onPress={() => switchRole("customer")}
@@ -184,6 +204,9 @@ export default function ProfileScreen() {
                   </TouchableOpacity>
 
                   <TouchableOpacity
+                    accessibilityLabel="Switch to vendor mode"
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: activeRole === "vendor" }}
                     activeOpacity={0.86}
                     style={[styles.roleActionButton, activeRole !== "vendor" && styles.inactiveRoleAction]}
                     onPress={() => switchRole("vendor")}
@@ -210,6 +233,9 @@ export default function ProfileScreen() {
                 <View style={styles.roleActionRow}>
                   {!user.roles.includes("vendor") ? (
                     <TouchableOpacity
+                      accessibilityLabel="Add vendor role"
+                      accessibilityRole="button"
+                      accessibilityState={{ disabled: roleBusy !== null }}
                       activeOpacity={0.86}
                       disabled={roleBusy !== null}
                       style={[styles.roleActionButton, roleBusy !== null && styles.disabledRoleAction]}
@@ -222,6 +248,9 @@ export default function ProfileScreen() {
 
                   {!user.roles.includes("customer") ? (
                     <TouchableOpacity
+                      accessibilityLabel="Add customer role"
+                      accessibilityRole="button"
+                      accessibilityState={{ disabled: roleBusy !== null }}
                       activeOpacity={0.86}
                       disabled={roleBusy !== null}
                       style={[styles.roleActionButton, roleBusy !== null && styles.disabledRoleAction]}
@@ -240,7 +269,7 @@ export default function ProfileScreen() {
             <View style={styles.menuSection}>
               <Text style={styles.menuSectionTitle}>Account</Text>
               {menuItems.slice(0, 5).map((item, index) => (
-                <TouchableOpacity key={index} style={styles.menuItem}>
+                <TouchableOpacity accessibilityLabel={item.title} accessibilityRole="button" key={index} style={styles.menuItem}>
                   <View style={[styles.menuIcon, { backgroundColor: item.color + "20" }]}>
                     <Ionicons name={item.icon} size={20} color={item.color} />
                   </View>
@@ -253,7 +282,7 @@ export default function ProfileScreen() {
             <View style={styles.menuSection}>
               <Text style={styles.menuSectionTitle}>Settings</Text>
               {menuItems.slice(5).map((item, index) => (
-                <TouchableOpacity key={index} style={styles.menuItem}>
+                <TouchableOpacity accessibilityLabel={item.title} accessibilityRole="button" key={index} style={styles.menuItem}>
                   <View style={[styles.menuIcon, { backgroundColor: item.color + "20" }]}>
                     <Ionicons name={item.icon} size={20} color={item.color} />
                   </View>
@@ -263,7 +292,7 @@ export default function ProfileScreen() {
               ))}
             </View>
 
-            <TouchableOpacity style={styles.logoutBtn} onPress={logout}>
+            <TouchableOpacity accessibilityLabel="Log out" accessibilityRole="button" style={styles.logoutBtn} onPress={logout}>
               <Ionicons name="log-out-outline" size={22} color="#e74c3c" />
               <Text style={styles.logoutText}>Log Out</Text>
             </TouchableOpacity>

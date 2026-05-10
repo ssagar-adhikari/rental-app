@@ -56,7 +56,12 @@ export default function ResetPasswordScreen() {
   return (
     <Screen>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-        <Pressable style={styles.backButton} onPress={() => router.replace("/login" as Href)}>
+        <Pressable
+          accessibilityLabel="Back to log in"
+          accessibilityRole="button"
+          style={styles.backButton}
+          onPress={() => router.replace("/login" as Href)}
+        >
           <Ionicons name="arrow-back" size={22} color={Colors.light.text} />
         </Pressable>
 
@@ -68,6 +73,7 @@ export default function ResetPasswordScreen() {
 
         <View style={styles.form}>
           <TextInput
+            accessibilityLabel="Email"
             autoCapitalize="none"
             autoComplete="email"
             keyboardType="email-address"
@@ -79,6 +85,7 @@ export default function ResetPasswordScreen() {
           />
           {emailError ? <Text style={styles.fieldError}>{emailError}</Text> : null}
           <TextInput
+            accessibilityLabel="New password"
             autoComplete="new-password"
             onChangeText={setPassword}
             placeholder="New password"
@@ -110,6 +117,7 @@ export default function ResetPasswordScreen() {
           ))}
           {passwordError ? <Text style={styles.fieldError}>{passwordError}</Text> : null}
           <TextInput
+            accessibilityLabel="Confirm new password"
             autoComplete="new-password"
             onChangeText={setPasswordConfirmation}
             placeholder="Confirm new password"
@@ -133,7 +141,14 @@ export default function ResetPasswordScreen() {
             </View>
           ) : null}
 
-          <Pressable disabled={loading || !canSubmit} style={[styles.submitButton, (loading || !canSubmit) && styles.disabledButton]} onPress={submit}>
+          <Pressable
+            accessibilityLabel="Reset password"
+            accessibilityRole="button"
+            accessibilityState={{ disabled: loading || !canSubmit, busy: loading }}
+            disabled={loading || !canSubmit}
+            style={[styles.submitButton, (loading || !canSubmit) && styles.disabledButton]}
+            onPress={submit}
+          >
             <Text style={styles.submitText}>{loading ? "Please wait..." : "Reset password"}</Text>
           </Pressable>
         </View>

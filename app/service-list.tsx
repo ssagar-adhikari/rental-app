@@ -40,7 +40,13 @@ function ServiceGridCard({ item, onPress }: { item: RentalListing; onPress: () =
   const secondFeature = item.features[1] ?? "Available";
 
   return (
-    <TouchableOpacity activeOpacity={0.88} style={styles.gridCard} onPress={onPress}>
+    <TouchableOpacity
+      accessibilityLabel={`View ${item.title}`}
+      accessibilityRole="button"
+      activeOpacity={0.88}
+      style={styles.gridCard}
+      onPress={onPress}
+    >
       <View style={styles.gridImageWrap}>
         <Image source={{ uri: item.image }} style={styles.gridImage} />
         <View style={styles.gridImageShade} />
@@ -50,7 +56,7 @@ function ServiceGridCard({ item, onPress }: { item: RentalListing; onPress: () =
           <Text style={styles.gridRatingText}>{item.rating.toFixed(1)}</Text>
         </View>
 
-        <TouchableOpacity activeOpacity={0.75} style={styles.gridHeartBtn}>
+        <TouchableOpacity accessibilityLabel={`Favorite ${item.title}`} accessibilityRole="button" activeOpacity={0.75} style={styles.gridHeartBtn}>
           <Ionicons name="heart-outline" size={16} color="white" />
         </TouchableOpacity>
       </View>
@@ -160,14 +166,20 @@ export default function ServiceListScreen() {
       {/* HEADER */}
       <View style={styles.header}>
         <View style={styles.headerTop}>
-          <TouchableOpacity style={styles.headerIconBtn} onPress={() => router.back()}>
+          <TouchableOpacity accessibilityLabel="Go back" accessibilityRole="button" style={styles.headerIconBtn} onPress={() => router.back()}>
             <Ionicons name="arrow-back" size={22} color="white" />
           </TouchableOpacity>
           <View style={styles.headerTitleWrap}>
             <Text style={styles.headerEyebrow}>Explore rentals</Text>
             <Text style={styles.title} numberOfLines={1}>{categoryTitle || "Services"}</Text>
           </View>
-          <TouchableOpacity style={styles.headerIconBtn} onPress={() => setFiltersVisible((current) => !current)}>
+          <TouchableOpacity
+            accessibilityLabel="Toggle filters"
+            accessibilityRole="button"
+            accessibilityState={{ expanded: filtersVisible }}
+            style={styles.headerIconBtn}
+            onPress={() => setFiltersVisible((current) => !current)}
+          >
             <Ionicons name="options-outline" size={21} color="white" />
           </TouchableOpacity>
         </View>
@@ -178,13 +190,21 @@ export default function ServiceListScreen() {
         <View style={styles.searchBox}>
           <Ionicons name="search" size={20} color={COLORS.muted} />
           <TextInput
+            accessibilityLabel="Search listings"
             placeholder="Search area, room, apartment..."
             placeholderTextColor="#98A1B3"
             value={searchText}
             onChangeText={setSearchText}
             style={styles.searchInput}
           />
-          <TouchableOpacity activeOpacity={0.82} style={styles.searchTuneBtn} onPress={() => setFiltersVisible((current) => !current)}>
+          <TouchableOpacity
+            accessibilityLabel="Toggle filters"
+            accessibilityRole="button"
+            accessibilityState={{ expanded: filtersVisible }}
+            activeOpacity={0.82}
+            style={styles.searchTuneBtn}
+            onPress={() => setFiltersVisible((current) => !current)}
+          >
             <Ionicons name="options-outline" size={17} color={COLORS.primary} />
           </TouchableOpacity>
         </View>
@@ -194,7 +214,7 @@ export default function ServiceListScreen() {
         <View style={styles.filterPanel}>
           <View style={styles.filterHeader}>
             <Text style={styles.filterTitle}>Refine results</Text>
-            <TouchableOpacity activeOpacity={0.75} onPress={resetFilters}>
+            <TouchableOpacity accessibilityLabel="Reset filters" accessibilityRole="button" activeOpacity={0.75} onPress={resetFilters}>
               <Text style={styles.resetText}>Reset</Text>
             </TouchableOpacity>
           </View>
@@ -209,7 +229,14 @@ export default function ServiceListScreen() {
               const selected = selectedType === item.value;
 
               return (
-                <TouchableOpacity activeOpacity={0.85} style={[styles.filterChip, selected && styles.selectedFilterChip]} onPress={() => setSelectedType(item.value)}>
+                <TouchableOpacity
+                  accessibilityLabel={`Filter by type: ${item.label}`}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected }}
+                  activeOpacity={0.85}
+                  style={[styles.filterChip, selected && styles.selectedFilterChip]}
+                  onPress={() => setSelectedType(item.value)}
+                >
                   <Ionicons name={item.icon} size={15} color={selected ? "white" : COLORS.primary} />
                   <Text style={[styles.filterChipText, selected && styles.selectedFilterText]}>{item.label}</Text>
                 </TouchableOpacity>
@@ -227,7 +254,14 @@ export default function ServiceListScreen() {
               const selected = sortBy === item.value;
 
               return (
-                <TouchableOpacity activeOpacity={0.85} style={[styles.filterChip, selected && styles.selectedFilterChip]} onPress={() => setSortBy(item.value)}>
+                <TouchableOpacity
+                  accessibilityLabel={`Sort by ${item.label}`}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected }}
+                  activeOpacity={0.85}
+                  style={[styles.filterChip, selected && styles.selectedFilterChip]}
+                  onPress={() => setSortBy(item.value)}
+                >
                   <Text style={[styles.filterChipText, selected && styles.selectedFilterText]}>{item.label}</Text>
                 </TouchableOpacity>
               );
@@ -244,7 +278,14 @@ export default function ServiceListScreen() {
               const selected = minRating === item.value;
 
               return (
-                <TouchableOpacity activeOpacity={0.85} style={[styles.filterChip, selected && styles.selectedFilterChip]} onPress={() => setMinRating(item.value)}>
+                <TouchableOpacity
+                  accessibilityLabel={`Minimum rating: ${item.label}`}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected }}
+                  activeOpacity={0.85}
+                  style={[styles.filterChip, selected && styles.selectedFilterChip]}
+                  onPress={() => setMinRating(item.value)}
+                >
                   <Text style={[styles.filterChipText, selected && styles.selectedFilterText]}>{item.label}</Text>
                 </TouchableOpacity>
               );
@@ -254,14 +295,14 @@ export default function ServiceListScreen() {
           <View style={styles.filterInputs}>
             <View style={styles.filterInputShell}>
               <Ionicons name="location-outline" size={16} color={COLORS.muted} />
-              <TextInput placeholder="City or area" placeholderTextColor="#98A1B3" value={cityFilter} onChangeText={setCityFilter} style={styles.filterInput} />
+              <TextInput accessibilityLabel="City or area" placeholder="City or area" placeholderTextColor="#98A1B3" value={cityFilter} onChangeText={setCityFilter} style={styles.filterInput} />
             </View>
             <View style={styles.priceInputRow}>
               <View style={styles.priceInputShell}>
-                <TextInput keyboardType="numeric" placeholder="Min price" placeholderTextColor="#98A1B3" value={minPrice} onChangeText={setMinPrice} style={styles.filterInput} />
+                <TextInput accessibilityLabel="Minimum price" keyboardType="numeric" placeholder="Min price" placeholderTextColor="#98A1B3" value={minPrice} onChangeText={setMinPrice} style={styles.filterInput} />
               </View>
               <View style={styles.priceInputShell}>
-                <TextInput keyboardType="numeric" placeholder="Max price" placeholderTextColor="#98A1B3" value={maxPrice} onChangeText={setMaxPrice} style={styles.filterInput} />
+                <TextInput accessibilityLabel="Maximum price" keyboardType="numeric" placeholder="Max price" placeholderTextColor="#98A1B3" value={maxPrice} onChangeText={setMaxPrice} style={styles.filterInput} />
               </View>
             </View>
           </View>
@@ -277,12 +318,18 @@ export default function ServiceListScreen() {
 
         <View style={styles.toggleContainer}>
           <TouchableOpacity
+            accessibilityLabel="Grid view"
+            accessibilityRole="button"
+            accessibilityState={{ selected: viewMode === "grid" }}
             style={[styles.toggleBtn, viewMode === "grid" && styles.toggleBtnActive]}
             onPress={() => setViewMode("grid")}
           >
             <Ionicons name="grid-outline" size={17} color={viewMode === "grid" ? "white" : COLORS.primary} />
           </TouchableOpacity>
           <TouchableOpacity
+            accessibilityLabel="List view"
+            accessibilityRole="button"
+            accessibilityState={{ selected: viewMode === "row" }}
             style={[styles.toggleBtn, viewMode === "row" && styles.toggleBtnActive]}
             onPress={() => setViewMode("row")}
           >
@@ -295,7 +342,13 @@ export default function ServiceListScreen() {
         <View style={styles.errorBox}>
           <Ionicons name="alert-circle-outline" size={18} color={COLORS.danger} />
           <Text style={styles.errorText}>{publicError}</Text>
-          <TouchableOpacity activeOpacity={0.8} style={styles.retryButton} onPress={() => refreshListings()}>
+          <TouchableOpacity
+            accessibilityLabel="Retry loading listings"
+            accessibilityRole="button"
+            activeOpacity={0.8}
+            style={styles.retryButton}
+            onPress={() => refreshListings()}
+          >
             <Text style={styles.retryText}>Retry</Text>
           </TouchableOpacity>
         </View>
@@ -322,7 +375,13 @@ export default function ServiceListScreen() {
               <ActivityIndicator color={COLORS.primary} />
             </View>
           ) : hasMoreListings ? (
-            <TouchableOpacity activeOpacity={0.85} style={styles.loadMoreButton} onPress={loadMoreListings}>
+            <TouchableOpacity
+              accessibilityLabel="Load more listings"
+              accessibilityRole="button"
+              activeOpacity={0.85}
+              style={styles.loadMoreButton}
+              onPress={loadMoreListings}
+            >
               <Text style={styles.loadMoreText}>Load more listings</Text>
             </TouchableOpacity>
           ) : null

@@ -17,7 +17,13 @@ export function SectionHeader({ eyebrow, title, actionLabel = "See all", onActio
         <Text style={styles.title}>{title}</Text>
       </View>
       {actionLabel ? (
-        <TouchableOpacity activeOpacity={0.8} style={styles.action} onPress={onActionPress}>
+        <TouchableOpacity
+          accessibilityLabel={`${actionLabel} ${title}`}
+          accessibilityRole="button"
+          activeOpacity={0.8}
+          style={styles.action}
+          onPress={onActionPress}
+        >
           <Text style={styles.actionText}>{actionLabel}</Text>
           <Ionicons name="chevron-forward" size={14} color={Colors.light.primary} />
         </TouchableOpacity>

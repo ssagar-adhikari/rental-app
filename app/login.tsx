@@ -177,6 +177,7 @@ export default function LoginScreen() {
                 <View style={[styles.inputShell, challengeToken && styles.disabledInputShell]}>
                   <Ionicons name="mail-outline" size={19} color={Colors.light.muted} />
                   <TextInput
+                    accessibilityLabel="Email"
                     autoCapitalize="none"
                     autoComplete="email"
                     editable={!challengeToken}
@@ -197,6 +198,7 @@ export default function LoginScreen() {
                   <View style={styles.inputShell}>
                     <Ionicons name="lock-closed-outline" size={19} color={Colors.light.muted} />
                     <TextInput
+                      accessibilityLabel="Password"
                       autoComplete="password"
                       onChangeText={setPassword}
                       placeholder="Enter password"
@@ -207,6 +209,7 @@ export default function LoginScreen() {
                     />
                     <TouchableOpacity
                       accessibilityLabel={showPassword ? "Hide password" : "Show password"}
+                      accessibilityRole="button"
                       activeOpacity={0.7}
                       hitSlop={8}
                       onPress={() => setShowPassword((current) => !current)}
@@ -227,6 +230,7 @@ export default function LoginScreen() {
                   <View style={styles.inputShell}>
                     <Ionicons name="keypad-outline" size={19} color={Colors.light.muted} />
                     <TextInput
+                      accessibilityLabel="Verification code"
                       keyboardType="number-pad"
                       maxLength={6}
                       onChangeText={setCode}
@@ -243,6 +247,9 @@ export default function LoginScreen() {
                       : "This code may have expired. Request a new code before trying again."}
                   </Text>
                   <TouchableOpacity
+                    accessibilityLabel="Request new verification code"
+                    accessibilityRole="button"
+                    accessibilityState={{ disabled: resendingCode || resendSecondsLeft > 0 }}
                     activeOpacity={0.75}
                     disabled={resendingCode || resendSecondsLeft > 0}
                     style={styles.resendButton}
@@ -269,7 +276,15 @@ export default function LoginScreen() {
                 </View>
               ) : null}
 
-              <TouchableOpacity activeOpacity={0.88} disabled={loading || !canSubmit} style={[styles.submitButton, (loading || !canSubmit) && styles.disabledButton]} onPress={submit}>
+              <TouchableOpacity
+                accessibilityLabel={challengeToken ? "Verify code" : "Log in"}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: loading || !canSubmit, busy: loading }}
+                activeOpacity={0.88}
+                disabled={loading || !canSubmit}
+                style={[styles.submitButton, (loading || !canSubmit) && styles.disabledButton]}
+                onPress={submit}
+              >
                 <Ionicons name={challengeToken ? "checkmark-circle-outline" : "arrow-forward"} size={20} color="white" />
                 <Text style={styles.submitText}>{loading ? "Please wait..." : challengeToken ? "Verify" : "Log in"}</Text>
               </TouchableOpacity>
@@ -277,16 +292,34 @@ export default function LoginScreen() {
 
             {!challengeToken ? (
               <View style={styles.linkStack}>
-                <TouchableOpacity activeOpacity={0.75} style={styles.linkButton} onPress={() => router.push("/forgot-password" as Href)}>
+                <TouchableOpacity
+                  accessibilityLabel="Forgot password"
+                  accessibilityRole="button"
+                  activeOpacity={0.75}
+                  style={styles.linkButton}
+                  onPress={() => router.push("/forgot-password" as Href)}
+                >
                   <Text style={styles.linkText}>Forgot password?</Text>
                 </TouchableOpacity>
                 <View style={styles.linkDivider} />
-                <TouchableOpacity activeOpacity={0.75} style={styles.linkButton} onPress={() => router.push("/register" as Href)}>
+                <TouchableOpacity
+                  accessibilityLabel="Create account"
+                  accessibilityRole="button"
+                  activeOpacity={0.75}
+                  style={styles.linkButton}
+                  onPress={() => router.push("/register" as Href)}
+                >
                   <Text style={styles.linkText}>Create account</Text>
                 </TouchableOpacity>
               </View>
             ) : (
-              <TouchableOpacity activeOpacity={0.75} style={styles.singleLink} onPress={resetChallenge}>
+              <TouchableOpacity
+                accessibilityLabel="Use a different account"
+                accessibilityRole="button"
+                activeOpacity={0.75}
+                style={styles.singleLink}
+                onPress={resetChallenge}
+              >
                 <Text style={styles.linkText}>Use a different account</Text>
               </TouchableOpacity>
             )}

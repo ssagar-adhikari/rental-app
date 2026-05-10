@@ -148,6 +148,9 @@ export default function RegisterScreen() {
 
                   return (
                     <TouchableOpacity
+                      accessibilityLabel={item.label}
+                      accessibilityRole="checkbox"
+                      accessibilityState={{ checked: selected }}
                       activeOpacity={0.85}
                       key={item.value}
                       style={[styles.roleButton, selected && styles.selectedRole]}
@@ -168,6 +171,8 @@ export default function RegisterScreen() {
               <View style={styles.fieldGroup}>
                 <Text style={styles.fieldLabel}>Location</Text>
                 <TouchableOpacity
+                  accessibilityLabel={registrationLocation ? `Change location, currently ${registrationLocation.label}` : "Set your location"}
+                  accessibilityRole="button"
                   activeOpacity={0.86}
                   style={[styles.locationSelector, validRegistrationLocation && styles.selectedLocationSelector]}
                   onPress={() => router.push("/location-picker" as Href)}
@@ -187,7 +192,15 @@ export default function RegisterScreen() {
                   </View>
                   <Ionicons name="chevron-forward" size={20} color={Colors.light.primary} />
                 </TouchableOpacity>
-                <TouchableOpacity activeOpacity={0.85} disabled={locating} style={styles.gpsButton} onPress={requestCurrentLocation}>
+                <TouchableOpacity
+                  accessibilityLabel="Use current GPS location"
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: locating, busy: locating }}
+                  activeOpacity={0.85}
+                  disabled={locating}
+                  style={styles.gpsButton}
+                  onPress={requestCurrentLocation}
+                >
                   {locating ? (
                     <Ionicons name="sync-outline" size={17} color={Colors.light.primary} />
                   ) : (
@@ -206,6 +219,7 @@ export default function RegisterScreen() {
                 <View style={styles.inputShell}>
                   <Ionicons name="person-outline" size={19} color={Colors.light.muted} />
                   <TextInput
+                    accessibilityLabel="Full name"
                     autoComplete="name"
                     onChangeText={setName}
                     placeholder="Your name"
@@ -222,6 +236,7 @@ export default function RegisterScreen() {
                 <View style={styles.inputShell}>
                   <Ionicons name="mail-outline" size={19} color={Colors.light.muted} />
                   <TextInput
+                    accessibilityLabel="Email"
                     autoCapitalize="none"
                     autoComplete="email"
                     keyboardType="email-address"
@@ -240,6 +255,7 @@ export default function RegisterScreen() {
                 <View style={styles.inputShell}>
                   <Ionicons name="lock-closed-outline" size={19} color={Colors.light.muted} />
                   <TextInput
+                    accessibilityLabel="Password"
                     autoComplete="new-password"
                     onChangeText={setPassword}
                     placeholder="Create password"
@@ -250,6 +266,7 @@ export default function RegisterScreen() {
                   />
                   <TouchableOpacity
                     accessibilityLabel={showPassword ? "Hide password" : "Show password"}
+                    accessibilityRole="button"
                     activeOpacity={0.7}
                     hitSlop={8}
                     onPress={() => setShowPassword((current) => !current)}
@@ -291,6 +308,7 @@ export default function RegisterScreen() {
                 <View style={styles.inputShell}>
                   <Ionicons name="shield-checkmark-outline" size={19} color={Colors.light.muted} />
                   <TextInput
+                    accessibilityLabel="Confirm password"
                     autoComplete="new-password"
                     onChangeText={setPasswordConfirmation}
                     placeholder="Repeat password"
@@ -301,6 +319,7 @@ export default function RegisterScreen() {
                   />
                   <TouchableOpacity
                     accessibilityLabel={showPasswordConfirmation ? "Hide password" : "Show password"}
+                    accessibilityRole="button"
                     activeOpacity={0.7}
                     hitSlop={8}
                     onPress={() => setShowPasswordConfirmation((current) => !current)}
@@ -332,11 +351,20 @@ export default function RegisterScreen() {
 
               {postRegisterRoute ? (
                 <>
-                  <TouchableOpacity activeOpacity={0.88} style={styles.submitButton} onPress={() => router.replace(postRegisterRoute)}>
+                  <TouchableOpacity
+                    accessibilityLabel="Continue"
+                    accessibilityRole="button"
+                    activeOpacity={0.88}
+                    style={styles.submitButton}
+                    onPress={() => router.replace(postRegisterRoute)}
+                  >
                     <Ionicons name="arrow-forward" size={20} color="white" />
                     <Text style={styles.submitText}>Continue</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
+                    accessibilityLabel="Resend verification email"
+                    accessibilityRole="button"
+                    accessibilityState={{ disabled: resendingVerification, busy: resendingVerification }}
                     activeOpacity={0.88}
                     disabled={resendingVerification}
                     style={styles.secondaryButton}
@@ -347,14 +375,28 @@ export default function RegisterScreen() {
                   </TouchableOpacity>
                 </>
               ) : (
-                <TouchableOpacity activeOpacity={0.88} disabled={loading || !canSubmit} style={[styles.submitButton, (loading || !canSubmit) && styles.disabledButton]} onPress={submit}>
+                <TouchableOpacity
+                  accessibilityLabel="Create account"
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: loading || !canSubmit, busy: loading }}
+                  activeOpacity={0.88}
+                  disabled={loading || !canSubmit}
+                  style={[styles.submitButton, (loading || !canSubmit) && styles.disabledButton]}
+                  onPress={submit}
+                >
                   <Ionicons name="arrow-forward" size={20} color="white" />
                   <Text style={styles.submitText}>{loading ? "Please wait..." : "Create account"}</Text>
                 </TouchableOpacity>
               )}
             </View>
 
-            <TouchableOpacity activeOpacity={0.75} style={styles.singleLink} onPress={() => router.push("/login" as Href)}>
+            <TouchableOpacity
+              accessibilityLabel="Already have an account, log in"
+              accessibilityRole="button"
+              activeOpacity={0.75}
+              style={styles.singleLink}
+              onPress={() => router.push("/login" as Href)}
+            >
               <Text style={styles.linkText}>Already have an account?</Text>
             </TouchableOpacity>
           </View>

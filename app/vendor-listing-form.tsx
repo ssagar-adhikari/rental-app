@@ -51,6 +51,7 @@ function Field({ icon, label, value, onChangeText, placeholder, keyboardType = "
       <View style={[styles.inputShell, multiline && styles.multilineShell]}>
         <Ionicons name={icon} size={19} color={Colors.light.muted} />
         <TextInput
+          accessibilityLabel={label}
           keyboardType={keyboardType}
           multiline={multiline}
           numberOfLines={multiline ? 4 : 1}
@@ -416,6 +417,9 @@ export default function VendorListingFormScreen() {
 
                   return (
                     <TouchableOpacity
+                      accessibilityLabel={`Category: ${category.title}`}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected }}
                       activeOpacity={0.86}
                       key={category.id}
                       style={[styles.categoryChip, selected && styles.selectedChip]}
@@ -434,6 +438,9 @@ export default function VendorListingFormScreen() {
 
                   return (
                     <TouchableOpacity
+                      accessibilityLabel={`Listing type: ${option.label}`}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected }}
                       activeOpacity={0.86}
                       key={option.value}
                       style={[styles.segmentButton, selected && styles.selectedSegment]}
@@ -492,6 +499,7 @@ export default function VendorListingFormScreen() {
                       <View style={[styles.inputShell, styles.mediaInputShell]}>
                         <Ionicons name="image-outline" size={19} color={Colors.light.muted} />
                         <TextInput
+                          accessibilityLabel="Image URL"
                           keyboardType="url"
                           onChangeText={setMediaUrlInput}
                           onSubmitEditing={addMediaUrl}
@@ -501,7 +509,13 @@ export default function VendorListingFormScreen() {
                           value={mediaUrlInput}
                         />
                       </View>
-                      <TouchableOpacity activeOpacity={0.86} style={styles.addMediaButton} onPress={addMediaUrl}>
+                      <TouchableOpacity
+                        accessibilityLabel="Add image URL"
+                        accessibilityRole="button"
+                        activeOpacity={0.86}
+                        style={styles.addMediaButton}
+                        onPress={addMediaUrl}
+                      >
                         <Ionicons name="add" size={22} color="white" />
                       </TouchableOpacity>
                     </View>
@@ -518,6 +532,9 @@ export default function VendorListingFormScreen() {
                         ) : null}
                         <View style={styles.mediaActions}>
                           <TouchableOpacity
+                            accessibilityLabel="Move image earlier"
+                            accessibilityRole="button"
+                            accessibilityState={{ disabled: index === 0 }}
                             activeOpacity={0.86}
                             disabled={index === 0}
                             style={[styles.mediaIconButton, index === 0 && styles.disabledIconButton]}
@@ -526,6 +543,9 @@ export default function VendorListingFormScreen() {
                             <Ionicons name="arrow-back" size={16} color={Colors.light.primary} />
                           </TouchableOpacity>
                           <TouchableOpacity
+                            accessibilityLabel="Move image later"
+                            accessibilityRole="button"
+                            accessibilityState={{ disabled: index === mediaUrlsFromValues(values).length - 1 }}
                             activeOpacity={0.86}
                             disabled={index === mediaUrlsFromValues(values).length - 1}
                             style={[styles.mediaIconButton, index === mediaUrlsFromValues(values).length - 1 && styles.disabledIconButton]}
@@ -533,7 +553,13 @@ export default function VendorListingFormScreen() {
                           >
                             <Ionicons name="arrow-forward" size={16} color={Colors.light.primary} />
                           </TouchableOpacity>
-                          <TouchableOpacity activeOpacity={0.86} style={styles.mediaDeleteButton} onPress={() => removeMediaUrl(index)}>
+                          <TouchableOpacity
+                            accessibilityLabel="Remove image"
+                            accessibilityRole="button"
+                            activeOpacity={0.86}
+                            style={styles.mediaDeleteButton}
+                            onPress={() => removeMediaUrl(index)}
+                          >
                             <Ionicons name="trash-outline" size={16} color={Colors.light.danger} />
                           </TouchableOpacity>
                         </View>
@@ -568,6 +594,9 @@ export default function VendorListingFormScreen() {
 
                               return (
                                 <TouchableOpacity
+                                  accessibilityLabel={`${label}: ${option.label}`}
+                                  accessibilityRole="button"
+                                  accessibilityState={{ selected }}
                                   activeOpacity={0.86}
                                   key={option.value}
                                   style={[styles.booleanButton, selected && styles.selectedSegment]}
@@ -596,6 +625,9 @@ export default function VendorListingFormScreen() {
 
                               return (
                                 <TouchableOpacity
+                                  accessibilityLabel={`${label}: ${option}`}
+                                  accessibilityRole="button"
+                                  accessibilityState={{ selected }}
                                   activeOpacity={0.86}
                                   key={option}
                                   style={[styles.categoryChip, selected && styles.selectedChip]}
@@ -674,6 +706,9 @@ export default function VendorListingFormScreen() {
 
                   return (
                     <TouchableOpacity
+                      accessibilityLabel={`Billing unit: ${unit.label}`}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected }}
                       activeOpacity={0.86}
                       key={unit.value}
                       style={[styles.categoryChip, selected && styles.selectedChip]}
@@ -704,18 +739,42 @@ export default function VendorListingFormScreen() {
 
             <View style={styles.footerActions}>
               {isEditing ? (
-                <TouchableOpacity activeOpacity={0.88} disabled={Boolean(saving)} style={[styles.primaryButton, saving && styles.disabledButton]} onPress={() => save()}>
+                <TouchableOpacity
+                  accessibilityLabel="Save changes"
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: Boolean(saving), busy: Boolean(saving) }}
+                  activeOpacity={0.88}
+                  disabled={Boolean(saving)}
+                  style={[styles.primaryButton, saving && styles.disabledButton]}
+                  onPress={() => save()}
+                >
                   <Ionicons name="save-outline" size={19} color="white" />
                   <Text style={styles.primaryButtonText}>{saving ? "Saving..." : "Save Changes"}</Text>
                 </TouchableOpacity>
               ) : (
                 <>
-                  <TouchableOpacity activeOpacity={0.88} disabled={Boolean(saving)} style={styles.draftButton} onPress={() => save("draft")}>
+                  <TouchableOpacity
+                    accessibilityLabel="Save as draft"
+                    accessibilityRole="button"
+                    accessibilityState={{ disabled: Boolean(saving), busy: saving === "draft" }}
+                    activeOpacity={0.88}
+                    disabled={Boolean(saving)}
+                    style={styles.draftButton}
+                    onPress={() => save("draft")}
+                  >
                     <Ionicons name="document-outline" size={19} color={Colors.light.primary} />
                     <Text style={styles.draftButtonText}>{saving === "draft" ? "Saving..." : "Save Draft"}</Text>
                   </TouchableOpacity>
 
-                  <TouchableOpacity activeOpacity={0.88} disabled={Boolean(saving)} style={[styles.primaryButton, saving && styles.disabledButton]} onPress={() => save("pending")}>
+                  <TouchableOpacity
+                    accessibilityLabel="Submit for review"
+                    accessibilityRole="button"
+                    accessibilityState={{ disabled: Boolean(saving), busy: saving === "pending" }}
+                    activeOpacity={0.88}
+                    disabled={Boolean(saving)}
+                    style={[styles.primaryButton, saving && styles.disabledButton]}
+                    onPress={() => save("pending")}
+                  >
                     <Ionicons name="send-outline" size={19} color="white" />
                     <Text style={styles.primaryButtonText}>{saving === "pending" ? "Submitting..." : "Submit for Review"}</Text>
                   </TouchableOpacity>

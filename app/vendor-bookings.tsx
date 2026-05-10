@@ -211,6 +211,9 @@ export default function VendorBookingsScreen() {
 
           {canCancel ? (
             <TouchableOpacity
+              accessibilityLabel={`Cancel booking ${item.booking_number ?? item.id}`}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: cancellingId === item.id, busy: cancellingId === item.id }}
               activeOpacity={0.85}
               disabled={cancellingId === item.id}
               style={styles.cancelButton}
@@ -252,6 +255,9 @@ export default function VendorBookingsScreen() {
 
             return (
               <TouchableOpacity
+                accessibilityLabel={`Filter by ${item.label}`}
+                accessibilityRole="button"
+                accessibilityState={{ selected }}
                 activeOpacity={0.85}
                 style={[styles.filterChip, selected && styles.filterChipSelected]}
                 onPress={() => setSelectedStatus(item.value)}
@@ -267,7 +273,13 @@ export default function VendorBookingsScreen() {
         <View style={styles.errorBox}>
           <Ionicons name="cloud-offline-outline" size={20} color={Colors.light.danger} />
           <Text style={styles.errorText}>{vendorBookingsError}</Text>
-          <TouchableOpacity activeOpacity={0.85} style={styles.retryButton} onPress={refresh}>
+          <TouchableOpacity
+            accessibilityLabel="Retry loading bookings"
+            accessibilityRole="button"
+            activeOpacity={0.85}
+            style={styles.retryButton}
+            onPress={refresh}
+          >
             <Text style={styles.retryText}>Retry</Text>
           </TouchableOpacity>
         </View>

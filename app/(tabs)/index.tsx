@@ -36,7 +36,13 @@ export default function HomeScreen() {
         {publicError ? (
           <View style={styles.errorBox}>
             <Text style={styles.errorText}>{publicError}</Text>
-            <TouchableOpacity activeOpacity={0.8} style={styles.retryButton} onPress={() => refreshListings()}>
+            <TouchableOpacity
+              accessibilityLabel="Retry loading listings"
+              accessibilityRole="button"
+              activeOpacity={0.8}
+              style={styles.retryButton}
+              onPress={() => refreshListings()}
+            >
               <Text style={styles.retryText}>Retry</Text>
             </TouchableOpacity>
           </View>

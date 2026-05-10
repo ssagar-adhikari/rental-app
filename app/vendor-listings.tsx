@@ -61,6 +61,8 @@ function VendorListingCard({
 
         <View style={styles.actionRow}>
           <TouchableOpacity
+            accessibilityLabel={`Edit listing ${item.title}`}
+            accessibilityRole="button"
             activeOpacity={0.85}
             style={styles.secondaryButton}
             onPress={() => router.push(`/vendor-listing-form?id=${item.id}` as Href)}
@@ -70,14 +72,30 @@ function VendorListingCard({
           </TouchableOpacity>
 
           {canSubmit ? (
-            <TouchableOpacity activeOpacity={0.85} disabled={busy} style={styles.secondaryButton} onPress={() => onSubmit(item)}>
+            <TouchableOpacity
+              accessibilityLabel={`Submit listing ${item.title} for review`}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: busy }}
+              activeOpacity={0.85}
+              disabled={busy}
+              style={styles.secondaryButton}
+              onPress={() => onSubmit(item)}
+            >
               <Ionicons name="send-outline" size={16} color={Colors.light.primary} />
               <Text style={styles.secondaryButtonText}>Submit</Text>
             </TouchableOpacity>
           ) : null}
 
           {canArchive ? (
-            <TouchableOpacity activeOpacity={0.85} disabled={busy} style={styles.dangerButton} onPress={() => onArchive(item)}>
+            <TouchableOpacity
+              accessibilityLabel={`Delete listing ${item.title}`}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: busy }}
+              activeOpacity={0.85}
+              disabled={busy}
+              style={styles.dangerButton}
+              onPress={() => onArchive(item)}
+            >
               <Ionicons name="trash-outline" size={16} color={Colors.light.danger} />
               <Text style={styles.dangerButtonText}>{busy ? "..." : "Delete"}</Text>
             </TouchableOpacity>
@@ -145,11 +163,23 @@ export default function VendorListingsScreen() {
       />
 
       <View style={styles.toolbar}>
-        <TouchableOpacity activeOpacity={0.88} style={styles.backButton} onPress={() => router.back()}>
+        <TouchableOpacity
+          accessibilityLabel="Go back"
+          accessibilityRole="button"
+          activeOpacity={0.88}
+          style={styles.backButton}
+          onPress={() => router.back()}
+        >
           <Ionicons name="arrow-back" size={18} color={Colors.light.primary} />
         </TouchableOpacity>
 
-        <TouchableOpacity activeOpacity={0.88} style={styles.addButton} onPress={() => router.push("/vendor-listing-form" as Href)}>
+        <TouchableOpacity
+          accessibilityLabel="Add listing"
+          accessibilityRole="button"
+          activeOpacity={0.88}
+          style={styles.addButton}
+          onPress={() => router.push("/vendor-listing-form" as Href)}
+        >
           <Ionicons name="add" size={20} color="white" />
           <Text style={styles.addButtonText}>Add Listing</Text>
         </TouchableOpacity>
@@ -185,7 +215,13 @@ export default function VendorListingsScreen() {
               </View>
               <Text style={styles.emptyTitle}>No listings yet</Text>
               <Text style={styles.emptyText}>Add your first room, service, vehicle, or rental item for review.</Text>
-              <TouchableOpacity activeOpacity={0.88} style={styles.emptyButton} onPress={() => router.push("/vendor-listing-form" as Href)}>
+              <TouchableOpacity
+                accessibilityLabel="Create listing"
+                accessibilityRole="button"
+                activeOpacity={0.88}
+                style={styles.emptyButton}
+                onPress={() => router.push("/vendor-listing-form" as Href)}
+              >
                 <Ionicons name="add-circle-outline" size={19} color="white" />
                 <Text style={styles.emptyButtonText}>Create Listing</Text>
               </TouchableOpacity>

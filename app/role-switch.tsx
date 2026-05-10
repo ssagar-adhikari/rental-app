@@ -66,6 +66,9 @@ export default function RoleSwitchScreen() {
 
             return (
               <TouchableOpacity
+                accessibilityLabel={content.title}
+                accessibilityRole="button"
+                accessibilityState={{ selected }}
                 activeOpacity={0.86}
                 key={role}
                 style={[styles.roleCard, selected && styles.selectedRoleCard]}

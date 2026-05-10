@@ -147,7 +147,15 @@ export default function LocationPickerScreen() {
           </View>
         ) : null}
 
-        <TouchableOpacity activeOpacity={0.88} disabled={saving || resolvingLabel} style={[styles.saveButton, (saving || resolvingLabel) && styles.disabledButton]} onPress={saveLocation}>
+        <TouchableOpacity
+          accessibilityLabel="Save location"
+          accessibilityRole="button"
+          accessibilityState={{ disabled: saving || resolvingLabel, busy: saving }}
+          activeOpacity={0.88}
+          disabled={saving || resolvingLabel}
+          style={[styles.saveButton, (saving || resolvingLabel) && styles.disabledButton]}
+          onPress={saveLocation}
+        >
           {saving ? <ActivityIndicator color="white" size="small" /> : <Ionicons name="checkmark-circle-outline" size={21} color="white" />}
           <Text style={styles.saveText}>{saving ? "Saving..." : resolvingLabel ? "Checking location..." : "Save Location"}</Text>
         </TouchableOpacity>

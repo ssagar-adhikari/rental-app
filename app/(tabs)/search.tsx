@@ -100,7 +100,13 @@ export default function SearchScreen() {
   };
 
   const renderFeatured = ({ item }: { item: RentalListing }) => (
-    <TouchableOpacity activeOpacity={0.9} style={styles.featuredCard} onPress={() => handleServicePress(item.id)}>
+    <TouchableOpacity
+      accessibilityLabel={`View ${item.title}`}
+      accessibilityRole="button"
+      activeOpacity={0.9}
+      style={styles.featuredCard}
+      onPress={() => handleServicePress(item.id)}
+    >
       <Image source={{ uri: item.image }} style={styles.featuredImage} />
       <View style={styles.featuredInfo}>
         <Text style={styles.featuredTitle} numberOfLines={1}>{item.title}</Text>
@@ -142,7 +148,13 @@ export default function SearchScreen() {
           <View style={styles.errorBox}>
             <Ionicons name="alert-circle-outline" size={18} color={Colors.light.danger} />
             <Text style={styles.errorText}>{publicError}</Text>
-            <TouchableOpacity activeOpacity={0.8} style={styles.retryButton} onPress={() => refreshListings()}>
+            <TouchableOpacity
+              accessibilityLabel="Retry loading listings"
+              accessibilityRole="button"
+              activeOpacity={0.8}
+              style={styles.retryButton}
+              onPress={() => refreshListings()}
+            >
               <Text style={styles.retryText}>Retry</Text>
             </TouchableOpacity>
           </View>
@@ -152,7 +164,13 @@ export default function SearchScreen() {
           <SectionHeader title="Recent Searches" actionLabel={recentSearches.length ? "Clear All" : ""} onActionPress={clearSearchHistory} />
           <View style={styles.wrapList}>
             {(recentSearches.length ? recentSearches : ["Apartment in Kathmandu", "Studio Room", "Luxury Flat"]).map((item) => (
-              <TouchableOpacity key={item} style={styles.recentItem} onPress={() => applySearch(item)}>
+              <TouchableOpacity
+                accessibilityLabel={`Search for ${item}`}
+                accessibilityRole="button"
+                key={item}
+                style={styles.recentItem}
+                onPress={() => applySearch(item)}
+              >
                 <Ionicons name="time-outline" size={18} color={Colors.light.muted} />
                 <Text style={styles.recentText}>{item}</Text>
               </TouchableOpacity>
@@ -164,7 +182,13 @@ export default function SearchScreen() {
           <SectionHeader title="Popular Searches" actionLabel="" />
           <View style={styles.wrapList}>
             {popularSearches.map((item) => (
-              <TouchableOpacity key={item} style={styles.popularItem} onPress={() => applySearch(item)}>
+              <TouchableOpacity
+                accessibilityLabel={`Search for ${item}`}
+                accessibilityRole="button"
+                key={item}
+                style={styles.popularItem}
+                onPress={() => applySearch(item)}
+              >
                 <Ionicons name="trending-up" size={16} color={Colors.light.primary} />
                 <Text style={styles.popularText}>{item}</Text>
               </TouchableOpacity>
@@ -188,7 +212,14 @@ export default function SearchScreen() {
               const selected = selectedType === option.value;
 
               return (
-                <TouchableOpacity key={option.value} style={[styles.filterChip, selected && styles.selectedFilterChip]} onPress={() => setSelectedType(option.value)}>
+                <TouchableOpacity
+                  accessibilityLabel={`Filter by type: ${option.label}`}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected }}
+                  key={option.value}
+                  style={[styles.filterChip, selected && styles.selectedFilterChip]}
+                  onPress={() => setSelectedType(option.value)}
+                >
                   <Text style={[styles.filterChipText, selected && styles.selectedFilterText]}>{option.label}</Text>
                 </TouchableOpacity>
               );
@@ -196,14 +227,27 @@ export default function SearchScreen() {
           </ScrollView>
 
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
-            <TouchableOpacity style={[styles.filterChip, selectedCategoryId === null && styles.selectedFilterChip]} onPress={() => setSelectedCategoryId(null)}>
+            <TouchableOpacity
+              accessibilityLabel="All Categories"
+              accessibilityRole="button"
+              accessibilityState={{ selected: selectedCategoryId === null }}
+              style={[styles.filterChip, selectedCategoryId === null && styles.selectedFilterChip]}
+              onPress={() => setSelectedCategoryId(null)}
+            >
               <Text style={[styles.filterChipText, selectedCategoryId === null && styles.selectedFilterText]}>All Categories</Text>
             </TouchableOpacity>
             {categories.map((category) => {
               const selected = selectedCategoryId === category.id;
 
               return (
-                <TouchableOpacity key={category.id} style={[styles.filterChip, selected && styles.selectedFilterChip]} onPress={() => setSelectedCategoryId(category.id)}>
+                <TouchableOpacity
+                  accessibilityLabel={`Filter by category: ${category.name}`}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected }}
+                  key={category.id}
+                  style={[styles.filterChip, selected && styles.selectedFilterChip]}
+                  onPress={() => setSelectedCategoryId(category.id)}
+                >
                   <Text style={[styles.filterChipText, selected && styles.selectedFilterText]}>{category.name}</Text>
                 </TouchableOpacity>
               );
@@ -215,7 +259,14 @@ export default function SearchScreen() {
               const selected = sortBy === option.value;
 
               return (
-                <TouchableOpacity key={option.value} style={[styles.filterChip, selected && styles.selectedFilterChip]} onPress={() => setSortBy(option.value)}>
+                <TouchableOpacity
+                  accessibilityLabel={`Sort by ${option.label}`}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected }}
+                  key={option.value}
+                  style={[styles.filterChip, selected && styles.selectedFilterChip]}
+                  onPress={() => setSortBy(option.value)}
+                >
                   <Text style={[styles.filterChipText, selected && styles.selectedFilterText]}>{option.label}</Text>
                 </TouchableOpacity>
               );
@@ -227,7 +278,14 @@ export default function SearchScreen() {
               const selected = minRating === option.value;
 
               return (
-                <TouchableOpacity key={option.label} style={[styles.filterChip, selected && styles.selectedFilterChip]} onPress={() => setMinRating(option.value)}>
+                <TouchableOpacity
+                  accessibilityLabel={`Minimum rating: ${option.label}`}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected }}
+                  key={option.label}
+                  style={[styles.filterChip, selected && styles.selectedFilterChip]}
+                  onPress={() => setMinRating(option.value)}
+                >
                   <Text style={[styles.filterChipText, selected && styles.selectedFilterText]}>{option.label}</Text>
                 </TouchableOpacity>
               );
@@ -237,14 +295,14 @@ export default function SearchScreen() {
           <View style={styles.filterInputs}>
             <View style={styles.filterInputShell}>
               <Ionicons name="location-outline" size={16} color={Colors.light.muted} />
-              <TextInput placeholder="City or area" placeholderTextColor="#98A1B3" value={cityFilter} onChangeText={setCityFilter} style={styles.filterInput} />
+              <TextInput accessibilityLabel="City or area" placeholder="City or area" placeholderTextColor="#98A1B3" value={cityFilter} onChangeText={setCityFilter} style={styles.filterInput} />
             </View>
             <View style={styles.priceInputRow}>
               <View style={styles.priceInputShell}>
-                <TextInput keyboardType="numeric" placeholder="Min price" placeholderTextColor="#98A1B3" value={minPrice} onChangeText={setMinPrice} style={styles.filterInput} />
+                <TextInput accessibilityLabel="Minimum price" keyboardType="numeric" placeholder="Min price" placeholderTextColor="#98A1B3" value={minPrice} onChangeText={setMinPrice} style={styles.filterInput} />
               </View>
               <View style={styles.priceInputShell}>
-                <TextInput keyboardType="numeric" placeholder="Max price" placeholderTextColor="#98A1B3" value={maxPrice} onChangeText={setMaxPrice} style={styles.filterInput} />
+                <TextInput accessibilityLabel="Maximum price" keyboardType="numeric" placeholder="Max price" placeholderTextColor="#98A1B3" value={maxPrice} onChangeText={setMaxPrice} style={styles.filterInput} />
               </View>
             </View>
           </View>
@@ -254,7 +312,13 @@ export default function SearchScreen() {
           <SectionHeader title="Browse Categories" actionLabel="" />
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoriesContainer}>
             {categories.map((category) => (
-              <TouchableOpacity key={category.id} style={styles.categoryCard} onPress={() => handleCategoryPress(category.id, category.name)}>
+              <TouchableOpacity
+                accessibilityLabel={`Browse ${category.name}`}
+                accessibilityRole="button"
+                key={category.id}
+                style={styles.categoryCard}
+                onPress={() => handleCategoryPress(category.id, category.name)}
+              >
                 <View style={styles.categoryImageContainer}>
                   <Image source={{ uri: category.image }} style={styles.categoryImage} />
                 </View>
@@ -285,7 +349,13 @@ export default function SearchScreen() {
         <View style={[styles.section, styles.lastSection]}>
           <SectionHeader title={hasFilters ? "Matching Listings" : "Nearby Recommendations"} />
           {featuredListings.slice(0, 5).map((item) => (
-            <TouchableOpacity key={item.id} style={styles.nearbyCard} onPress={() => handleServicePress(item.id)}>
+            <TouchableOpacity
+              accessibilityLabel={`View ${item.title}`}
+              accessibilityRole="button"
+              key={item.id}
+              style={styles.nearbyCard}
+              onPress={() => handleServicePress(item.id)}
+            >
               <Image source={{ uri: item.image }} style={styles.nearbyImage} />
               <View style={styles.nearbyInfo}>
                 <Text style={styles.nearbyTitle} numberOfLines={1}>{item.title}</Text>
@@ -295,7 +365,7 @@ export default function SearchScreen() {
                   <Text style={styles.nearbyLocation}>{item.location}</Text>
                 </View>
               </View>
-              <TouchableOpacity style={styles.heartBtn}>
+              <TouchableOpacity accessibilityLabel={`Favorite ${item.title}`} accessibilityRole="button" style={styles.heartBtn}>
                 <Ionicons name="heart-outline" size={22} color={Colors.light.danger} />
               </TouchableOpacity>
             </TouchableOpacity>
@@ -308,7 +378,14 @@ export default function SearchScreen() {
             </View>
           ) : null}
           {hasMoreListings ? (
-            <TouchableOpacity activeOpacity={0.85} style={styles.loadMoreButton} onPress={loadMoreListings}>
+            <TouchableOpacity
+              accessibilityLabel="Load more listings"
+              accessibilityRole="button"
+              accessibilityState={{ busy: loadingMore }}
+              activeOpacity={0.85}
+              style={styles.loadMoreButton}
+              onPress={loadMoreListings}
+            >
               <Text style={styles.loadMoreText}>{loadingMore ? "Loading..." : "Load more listings"}</Text>
             </TouchableOpacity>
           ) : null}
