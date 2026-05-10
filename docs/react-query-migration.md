@@ -209,7 +209,7 @@ You can remove `handleAuthException` entirely — it's redundant.
 
 ## File checklist
 
-- [ ] [`context/ListingsContext.tsx`](../context/ListingsContext.tsx) — replace internals; keep export shape.
-- [ ] [`context/BookingsContext.tsx`](../context/BookingsContext.tsx) — same.
-- [ ] Search the repo for `readJsonCache`/`writeJsonCache` once both contexts are migrated; if no other consumers, delete `utils/cacheStorage.ts`.
+- [x] [`context/ListingsContext.tsx`](../context/ListingsContext.tsx) — replace internals; keep export shape.
+- [x] [`context/BookingsContext.tsx`](../context/BookingsContext.tsx) — same.
+- [x] Search the repo for `readJsonCache`/`writeJsonCache` once both contexts are migrated; if no other consumers, delete `utils/cacheStorage.ts`.
 - [ ] Optional: add `@tanstack/query-async-storage-persister` for offline-first persistence.

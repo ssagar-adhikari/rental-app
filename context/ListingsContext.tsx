@@ -1,16 +1,8 @@
-import { createContext, PropsWithChildren, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { ApiError } from "@/services/authApi";
+import { createContext, PropsWithChildren, useCallback, useContext, useMemo, useState } from "react";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient, type InfiniteData } from "@tanstack/react-query";
+import { useAuth } from "@/context/AuthContext";
 import { listingApi, mapApiListingToRentalListing, type ListingQueryParams, type PaginatedListings } from "@/services/listingApi";
 import type { ApiCategoryAttribute, ApiListing, ListingFormValues, ListingStatus, RentalListing } from "@/types/rental";
-import { useAuth } from "@/context/AuthContext";
-import { readJsonCache, writeJsonCache } from "@/utils/cacheStorage";
-
-type ListingPagination = {
-  currentPage: number;
-  lastPage: number;
-  perPage: number;
-  total: number;
-};
 
 type ListingsContextValue = {
   listings: ApiListing[];
@@ -34,263 +26,203 @@ type ListingsContextValue = {
 };
 
 const ListingsContext = createContext<ListingsContextValue | null>(null);
-const PUBLIC_LISTINGS_CACHE_KEY = "rental_marketplace_public_listings_cache";
 
-function paginationFromResponse(response: PaginatedListings): ListingPagination {
-  return {
-    currentPage: Number(response.meta?.current_page ?? 1),
-    lastPage: Number(response.meta?.last_page ?? 1),
-    perPage: Number(response.meta?.per_page ?? response.data.length),
-    total: Number(response.meta?.total ?? response.data.length),
-  };
-}
+export const publicListingsKey = ["listings", "public"] as const;
+export const vendorListingsKey = ["listings", "vendor"] as const;
+export const listingByIdKey = (id: number) => ["listings", "by-id", id] as const;
 
-function mergeListings(current: ApiListing[], next: ApiListing[]) {
-  const byId = new Map<number, ApiListing>();
-
-  [...current, ...next].forEach((listing) => {
-    byId.set(listing.id, listing);
-  });
-
-  return Array.from(byId.values());
-}
-
-function cacheablePublicParams(params: ListingQueryParams) {
-  return !params.q && !params.category_id && !params.city && !params.listing_type && (!params.page || params.page === 1);
-}
+const defaultPublicParams: ListingQueryParams = { per_page: 20 };
+const defaultVendorParams: ListingQueryParams = { per_page: 20 };
 
 export function ListingsProvider({ children }: PropsWithChildren) {
-  const { logout, token, user } = useAuth();
-  const [listings, setListings] = useState<ApiListing[]>([]);
-  const [vendorListings, setVendorListings] = useState<ApiListing[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [vendorLoading, setVendorLoading] = useState(false);
-  const [publicError, setPublicError] = useState<string | null>(null);
-  const [vendorError, setVendorError] = useState<string | null>(null);
-  const [pagination, setPagination] = useState<ListingPagination>({
-    currentPage: 1,
-    lastPage: 1,
-    perPage: 20,
-    total: 0,
-  });
-  const [lastPublicParams, setLastPublicParams] = useState<ListingQueryParams>({ per_page: 20 });
-  const loadedPublicListings = useRef(false);
+  const { token, user } = useAuth();
+  const queryClient = useQueryClient();
+  const [publicParams, setPublicParams] = useState<ListingQueryParams>(defaultPublicParams);
+  const [vendorParams, setVendorParams] = useState<ListingQueryParams>(defaultVendorParams);
 
-  const handleAuthException = useCallback(
-    async (exception: unknown) => {
-      if (exception instanceof ApiError && exception.status === 401) {
-        await logout();
-      }
+  const isVendor = !!token && !!user?.roles.includes("vendor");
+
+  const publicQuery = useInfiniteQuery({
+    queryKey: [...publicListingsKey, publicParams] as const,
+    queryFn: ({ pageParam }) => listingApi.publicListings({ ...publicParams, page: pageParam }),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) => {
+      const current = Number(lastPage.meta?.current_page ?? 1);
+      const last = Number(lastPage.meta?.last_page ?? 1);
+      return current < last ? current + 1 : undefined;
     },
-    [logout],
+  });
+
+  const vendorQuery = useQuery({
+    queryKey: [...vendorListingsKey, vendorParams] as const,
+    queryFn: () => listingApi.vendorListings(token!, vendorParams),
+    enabled: isVendor,
+  });
+
+  const listings = useMemo(
+    () => publicQuery.data?.pages.flatMap((page) => page.data) ?? [],
+    [publicQuery.data],
   );
 
-  const refreshListings = useCallback(async (params: ListingQueryParams = {}) => {
-    const nextParams = { per_page: 20, ...params, page: params.page ?? 1 };
-    const initialLoad = !loadedPublicListings.current;
-    setLastPublicParams(nextParams);
-    setLoading(initialLoad);
-    setRefreshing(!initialLoad);
-    setPublicError(null);
+  const vendorListings = vendorQuery.data?.data ?? [];
 
-    try {
-      const response = await listingApi.publicListings(nextParams);
-      setListings(response.data);
-      setPagination(paginationFromResponse(response));
+  const syncListingInCaches = useCallback(
+    (listing: ApiListing) => {
+      queryClient.setQueriesData<InfiniteData<PaginatedListings>>(
+        { queryKey: publicListingsKey, exact: false },
+        (current) =>
+          current
+            ? {
+                ...current,
+                pages: current.pages.map((page) => ({
+                  ...page,
+                  data: page.data.map((item) => (item.id === listing.id ? listing : item)),
+                })),
+              }
+            : current,
+      );
 
-      if (cacheablePublicParams(nextParams)) {
-        await writeJsonCache(PUBLIC_LISTINGS_CACHE_KEY, {
-          data: response.data,
-          pagination: paginationFromResponse(response),
-        });
+      queryClient.setQueriesData<PaginatedListings>(
+        { queryKey: vendorListingsKey, exact: false },
+        (current) =>
+          current
+            ? { ...current, data: current.data.map((item) => (item.id === listing.id ? listing : item)) }
+            : current,
+      );
+    },
+    [queryClient],
+  );
+
+  const refreshListings = useCallback(
+    async (params: ListingQueryParams = {}) => {
+      if (Object.keys(params).length > 0) {
+        setPublicParams((current) => ({ ...defaultPublicParams, ...current, ...params }));
+        return;
       }
-    } catch (exception) {
-      setPublicError(exception instanceof Error ? exception.message : "Unable to load listings.");
-    } finally {
-      loadedPublicListings.current = true;
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, []);
+      await publicQuery.refetch();
+    },
+    [publicQuery],
+  );
 
   const loadMoreListings = useCallback(async () => {
-    if (loadingMore || loading || pagination.currentPage >= pagination.lastPage) {
-      return;
+    if (publicQuery.hasNextPage && !publicQuery.isFetchingNextPage) {
+      await publicQuery.fetchNextPage();
     }
+  }, [publicQuery]);
 
-    setLoadingMore(true);
-    setPublicError(null);
-
-    try {
-      const response = await listingApi.publicListings({
-        ...lastPublicParams,
-        page: pagination.currentPage + 1,
-      });
-      setListings((current) => mergeListings(current, response.data));
-      setPagination(paginationFromResponse(response));
-    } catch (exception) {
-      setPublicError(exception instanceof Error ? exception.message : "Unable to load more listings.");
-    } finally {
-      setLoadingMore(false);
-    }
-  }, [lastPublicParams, loading, loadingMore, pagination.currentPage, pagination.lastPage]);
-
-  const refreshVendorListings = useCallback(async (params: ListingQueryParams = {}) => {
-    if (!token || !user?.roles.includes("vendor")) {
-      setVendorListings([]);
-      return;
-    }
-
-    setVendorLoading(true);
-    setVendorError(null);
-
-    try {
-      const response = await listingApi.vendorListings(token, params);
-      setVendorListings(response.data);
-    } catch (exception) {
-      await handleAuthException(exception);
-      setVendorError(exception instanceof Error ? exception.message : "Unable to load vendor listings.");
-    } finally {
-      setVendorLoading(false);
-    }
-  }, [handleAuthException, token, user?.roles]);
+  const refreshVendorListings = useCallback(
+    async (params: ListingQueryParams = {}) => {
+      if (!isVendor) return;
+      if (Object.keys(params).length > 0) {
+        setVendorParams((current) => ({ ...defaultVendorParams, ...current, ...params }));
+        return;
+      }
+      await vendorQuery.refetch();
+    },
+    [isVendor, vendorQuery],
+  );
 
   const loadListing = useCallback(
     async (id: number) => {
-      let listing: ApiListing;
-
-      try {
-        listing = await listingApi.show(id, token);
-      } catch (exception) {
-        await handleAuthException(exception);
-        throw exception;
-      }
-
-      setListings((current) => {
-        const exists = current.some((item) => item.id === listing.id);
-        return exists ? current.map((item) => (item.id === listing.id ? listing : item)) : [listing, ...current];
+      const listing = await queryClient.fetchQuery({
+        queryKey: listingByIdKey(id),
+        queryFn: () => listingApi.show(id, token),
       });
-
-      setVendorListings((current) => current.map((item) => (item.id === listing.id ? listing : item)));
-
+      syncListingInCaches(listing);
       return listing;
     },
-    [handleAuthException, token],
+    [queryClient, syncListingInCaches, token],
   );
 
-  const createListing = useCallback(
-    async (values: ListingFormValues, status: "draft" | "pending", categoryAttributes: ApiCategoryAttribute[] = []) => {
+  const createMutation = useMutation({
+    mutationFn: ({
+      values,
+      status,
+      attrs,
+    }: {
+      values: ListingFormValues;
+      status: "draft" | "pending";
+      attrs: ApiCategoryAttribute[];
+    }) => {
       if (!token) {
         throw new Error("Please log in as a vendor to create a listing.");
       }
-
-      let listing: ApiListing;
-
-      try {
-        listing = await listingApi.create(values, status, token, categoryAttributes);
-      } catch (exception) {
-        await handleAuthException(exception);
-        throw exception;
-      }
-
-      setVendorListings((current) => [listing, ...current]);
-      return listing;
+      return listingApi.create(values, status, token, attrs);
     },
-    [handleAuthException, token],
-  );
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: vendorListingsKey });
+    },
+  });
 
-  const updateListing = useCallback(
-    async (id: number, values: ListingFormValues, categoryAttributes: ApiCategoryAttribute[] = []) => {
+  const updateMutation = useMutation({
+    mutationFn: ({
+      id,
+      values,
+      attrs,
+    }: {
+      id: number;
+      values: ListingFormValues;
+      attrs: ApiCategoryAttribute[];
+    }) => {
       if (!token) {
         throw new Error("Please log in as a vendor to update a listing.");
       }
-
-      let listing: ApiListing;
-
-      try {
-        listing = await listingApi.update(id, values, token, categoryAttributes);
-      } catch (exception) {
-        await handleAuthException(exception);
-        throw exception;
-      }
-
-      setVendorListings((current) => current.map((item) => (item.id === id ? listing : item)));
-      setListings((current) => current.map((item) => (item.id === id ? listing : item)));
-      return listing;
+      return listingApi.update(id, values, token, attrs);
     },
-    [handleAuthException, token],
-  );
+    onSuccess: (listing) => {
+      queryClient.setQueryData(listingByIdKey(listing.id), listing);
+      syncListingInCaches(listing);
+    },
+  });
 
-  const transitionListing = useCallback(
-    async (id: number, status: ListingStatus) => {
+  const transitionMutation = useMutation({
+    mutationFn: ({ id, status }: { id: number; status: ListingStatus }) => {
       if (!token) {
         throw new Error("Please log in as a vendor to update listing status.");
       }
-
-      let listing: ApiListing;
-
-      try {
-        listing = await listingApi.transition(id, status, token);
-      } catch (exception) {
-        await handleAuthException(exception);
-        throw exception;
-      }
-
-      setVendorListings((current) => current.map((item) => (item.id === id ? listing : item)));
-      setListings((current) => current.filter((item) => item.id !== id || listing.status === "published").map((item) => (item.id === id ? listing : item)));
-      return listing;
+      return listingApi.transition(id, status, token);
     },
-    [handleAuthException, token],
+    onSuccess: (listing) => {
+      queryClient.setQueryData(listingByIdKey(listing.id), listing);
+      queryClient.invalidateQueries({ queryKey: vendorListingsKey });
+      queryClient.invalidateQueries({ queryKey: publicListingsKey });
+    },
+  });
+
+  const createListing = useCallback(
+    (values: ListingFormValues, status: "draft" | "pending", categoryAttributes: ApiCategoryAttribute[] = []) =>
+      createMutation.mutateAsync({ values, status, attrs: categoryAttributes }),
+    [createMutation],
   );
 
-  useEffect(() => {
-    let mounted = true;
+  const updateListing = useCallback(
+    (id: number, values: ListingFormValues, categoryAttributes: ApiCategoryAttribute[] = []) =>
+      updateMutation.mutateAsync({ id, values, attrs: categoryAttributes }),
+    [updateMutation],
+  );
 
-    async function bootListings() {
-      const cached = await readJsonCache<{
-        data: ApiListing[];
-        pagination: ListingPagination;
-      }>(PUBLIC_LISTINGS_CACHE_KEY);
-
-      if (mounted && cached?.data?.length) {
-        loadedPublicListings.current = true;
-        setListings(cached.data);
-        setPagination(cached.pagination);
-      }
-
-      await refreshListings();
-    }
-
-    bootListings();
-
-    return () => {
-      mounted = false;
-    };
-  }, [refreshListings]);
-
-  useEffect(() => {
-    refreshVendorListings();
-  }, [refreshVendorListings]);
+  const transitionListing = useCallback(
+    (id: number, status: ListingStatus) => transitionMutation.mutateAsync({ id, status }),
+    [transitionMutation],
+  );
 
   const rentalListings = useMemo(() => listings.map(mapApiListingToRentalListing), [listings]);
-  const hasMoreListings = pagination.currentPage < pagination.lastPage;
-  const error = publicError ?? vendorError;
+  const publicError = publicQuery.error instanceof Error ? publicQuery.error.message : null;
+  const vendorError = vendorQuery.error instanceof Error ? vendorQuery.error.message : null;
 
   const value = useMemo<ListingsContextValue>(
     () => ({
       listings,
       rentalListings,
       vendorListings,
-      loading,
-      refreshing,
-      loadingMore,
-      hasMoreListings,
-      vendorLoading,
+      loading: publicQuery.isPending,
+      refreshing: publicQuery.isRefetching && !publicQuery.isFetchingNextPage,
+      loadingMore: publicQuery.isFetchingNextPage,
+      hasMoreListings: publicQuery.hasNextPage ?? false,
+      vendorLoading: vendorQuery.isPending && isVendor,
       publicError,
       vendorError,
-      error,
+      error: publicError ?? vendorError,
       refreshListings,
       loadMoreListings,
       refreshVendorListings,
@@ -301,23 +233,23 @@ export function ListingsProvider({ children }: PropsWithChildren) {
     }),
     [
       createListing,
-      error,
-      hasMoreListings,
+      isVendor,
       listings,
       loadListing,
-      loadingMore,
-      loading,
       loadMoreListings,
       publicError,
+      publicQuery.hasNextPage,
+      publicQuery.isFetchingNextPage,
+      publicQuery.isPending,
+      publicQuery.isRefetching,
       refreshListings,
       refreshVendorListings,
-      refreshing,
       rentalListings,
       transitionListing,
       updateListing,
       vendorError,
       vendorListings,
-      vendorLoading,
+      vendorQuery.isPending,
     ],
   );
 
