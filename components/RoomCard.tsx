@@ -1,9 +1,11 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import { useState } from "react";
 import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import type { StyleProp, ViewStyle } from "react-native";
-import { Colors, Radius, Shadows, Spacing, Typography } from "@/constants/theme";
+import { Colors, Radius, Shadows, Spacing, TouchTarget, Typography } from "@/constants/theme";
 import type { RentalListing } from "@/types/rental";
+import { lightImpactHaptic, selectionHaptic } from "@/utils/haptics";
 
 type RoomCardProps = {
   item: RentalListing;
@@ -14,22 +16,42 @@ const featureIcons = ["bed-outline", "water-outline", "resize-outline"] as const
 
 export default function RoomCard({ item, cardStyle }: RoomCardProps) {
   const router = useRouter();
+  const [imageFailed, setImageFailed] = useState(false);
   const [priceAmount, priceUnit] = item.price.split("/").map((value) => value.trim());
+  const openListing = () => {
+    lightImpactHaptic();
+    router.push(`/service-detail?serviceId=${item.id}`);
+  };
 
   return (
     <TouchableOpacity
+      accessibilityHint="Opens listing details"
+      accessibilityLabel={`${item.title}, ${item.price}, ${item.location}`}
+      accessibilityRole="button"
       activeOpacity={0.9}
       style={[styles.card, cardStyle]}
-      onPress={() => router.push(`/service-detail?serviceId=${item.id}`)}
+      onPress={openListing}
     >
-      <Image source={{ uri: item.image }} style={styles.image} />
+      {imageFailed ? (
+        <View style={[styles.image, styles.imagePlaceholder]}>
+          <Ionicons name="image-outline" size={28} color={Colors.light.muted} />
+        </View>
+      ) : (
+        <Image source={{ uri: item.image }} style={styles.image} onError={() => setImageFailed(true)} />
+      )}
 
       <View style={styles.ratingBadge}>
         <Ionicons name="star" size={12} color={Colors.light.warning} />
         <Text style={styles.ratingText}>{item.rating.toFixed(1)}</Text>
       </View>
 
-      <TouchableOpacity activeOpacity={0.8} style={styles.heartBtn} onPress={() => {}}>
+      <TouchableOpacity
+        accessibilityLabel={`Save ${item.title}`}
+        accessibilityRole="button"
+        activeOpacity={0.8}
+        style={styles.heartBtn}
+        onPress={selectionHaptic}
+      >
         <Ionicons name="heart-outline" size={18} color="white" />
       </TouchableOpacity>
 
@@ -58,7 +80,9 @@ export default function RoomCard({ item, cardStyle }: RoomCardProps) {
           {item.features.slice(0, 3).map((feature, index) => (
             <View key={feature} style={styles.featureItem}>
               <Ionicons name={featureIcons[index] ?? "checkmark-circle-outline"} size={14} color={Colors.light.primary} />
-              <Text style={styles.featureText}>{feature}</Text>
+              <Text style={styles.featureText} numberOfLines={1}>
+                {feature}
+              </Text>
             </View>
           ))}
         </View>
@@ -79,7 +103,11 @@ const styles = StyleSheet.create({
   image: {
     width: "100%",
     height: 150,
-    backgroundColor: Colors.light.border,
+    backgroundColor: Colors.light.imagePlaceholder,
+  },
+  imagePlaceholder: {
+    alignItems: "center",
+    justifyContent: "center",
   },
   ratingBadge: {
     position: "absolute",
@@ -101,9 +129,12 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: Spacing.md,
     right: Spacing.md,
-    backgroundColor: "rgba(17,24,39,0.42)",
+    alignItems: "center",
+    backgroundColor: Colors.light.overlayStrong,
     borderRadius: Radius.pill,
-    padding: Spacing.sm,
+    height: TouchTarget.min,
+    justifyContent: "center",
+    width: TouchTarget.min,
   },
   info: {
     padding: 14,
@@ -146,7 +177,7 @@ const styles = StyleSheet.create({
   featuresRow: {
     flexDirection: "row",
     borderTopWidth: 1,
-    borderTopColor: "#EEF1F7",
+    borderTopColor: Colors.light.borderSubtle,
     paddingTop: Spacing.md,
     justifyContent: "space-between",
   },
@@ -154,8 +185,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.xs,
+    flexShrink: 1,
   },
   featureText: {
+    flexShrink: 1,
     color: Colors.light.muted,
     fontSize: 11,
     lineHeight: 14,

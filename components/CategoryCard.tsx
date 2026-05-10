@@ -1,28 +1,43 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import { useState } from "react";
 import { ImageBackground, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { CATEGORY_META, DEFAULT_CATEGORY_META } from "@/constants/categoryMeta";
 import { Colors, Radius, Shadows, Spacing, Typography } from "@/constants/theme";
 import type { Category } from "@/types/rental";
+import { lightImpactHaptic } from "@/utils/haptics";
 
 export default function CategoryCard({ item }: { item: Category }) {
   const router = useRouter();
+  const [imageFailed, setImageFailed] = useState(false);
   const meta = CATEGORY_META[item.title] ?? DEFAULT_CATEGORY_META;
   const listingCount = item.listing_count;
   const countLabel = typeof listingCount === "number" ? `${listingCount} listings` : meta.count;
 
   return (
     <TouchableOpacity
+      accessibilityHint="Opens this category"
+      accessibilityLabel={`${item.title}, ${countLabel}`}
+      accessibilityRole="button"
       activeOpacity={0.9}
       style={styles.card}
-      onPress={() => router.push(`/service-list?categoryId=${item.id}&categoryName=${item.title}`)}
+      onPress={() => {
+        lightImpactHaptic();
+        router.push(`/service-list?categoryId=${item.id}&categoryName=${item.title}`);
+      }}
     >
-      <ImageBackground source={{ uri: item.image }} style={styles.image} imageStyle={styles.imageRadius}>
-        <View style={styles.overlay} />
-        <View style={[styles.iconBadge, { backgroundColor: meta.accent }]}>
-          <Ionicons name={meta.icon} size={20} color="white" />
+      {imageFailed ? (
+        <View style={[styles.image, styles.imagePlaceholder]}>
+          <Ionicons name={meta.icon} size={24} color={Colors.light.primary} />
         </View>
-      </ImageBackground>
+      ) : (
+        <ImageBackground source={{ uri: item.image }} style={styles.image} imageStyle={styles.imageRadius} onError={() => setImageFailed(true)}>
+          <View style={styles.overlay} />
+          <View style={[styles.iconBadge, { backgroundColor: meta.accent }]}>
+            <Ionicons name={meta.icon} size={20} color="white" />
+          </View>
+        </ImageBackground>
+      )}
       <View style={styles.info}>
         <Text style={styles.text} numberOfLines={1}>
           {item.title}
@@ -54,7 +69,12 @@ const styles = StyleSheet.create({
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(15,23,42,0.18)",
+    backgroundColor: Colors.light.overlay,
+  },
+  imagePlaceholder: {
+    alignItems: "center",
+    backgroundColor: Colors.light.imagePlaceholder,
+    justifyContent: "center",
   },
   iconBadge: {
     width: 40,
@@ -64,7 +84,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     margin: Spacing.md,
     borderWidth: 2,
-    borderColor: "rgba(255,255,255,0.75)",
+    borderColor: Colors.light.onPrimarySubtle,
   },
   info: {
     padding: Spacing.md,
@@ -78,5 +98,6 @@ const styles = StyleSheet.create({
     color: Colors.light.muted,
     marginTop: Spacing.xs,
     ...Typography.eyebrow,
+    minHeight: 16,
   },
 });

@@ -7,7 +7,7 @@ export type UserLocation = {
   latitude: number;
   longitude: number;
   label: string;
-  source: "gps" | "manual";
+  source: "gps" | "manual" | "default";
   updatedAt: string;
 };
 
@@ -132,7 +132,11 @@ export function LocationProvider({ children }: PropsWithChildren) {
       const permission = await Location.requestForegroundPermissionsAsync();
 
       if (permission.status !== "granted") {
-        setError("Location permission was not granted.");
+        setError(
+          permission.canAskAgain
+            ? "Location permission was not granted. You can still choose your area on the map."
+            : "Location permission is blocked. Enable it in device settings or choose your area on the map.",
+        );
         return null;
       }
 
@@ -147,7 +151,7 @@ export function LocationProvider({ children }: PropsWithChildren) {
 
       return persistLocation(buildLocation(coordinate, label, "gps"));
     } catch {
-      setError("Unable to get your current location.");
+      setError("Unable to get your current location. Choose your area on the map to continue.");
       return null;
     } finally {
       setLoading(false);
@@ -198,7 +202,7 @@ export function LocationProvider({ children }: PropsWithChildren) {
       const nextLocation = await requestCurrentLocation();
 
       if (!nextLocation && !storedLocation && mounted) {
-        setLocation(buildLocation(DEFAULT_LOCATION, "Kathmandu", "gps"));
+        setLocation(buildLocation(DEFAULT_LOCATION, "Kathmandu", "default"));
       }
     }
 

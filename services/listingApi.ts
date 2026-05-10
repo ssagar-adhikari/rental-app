@@ -1,10 +1,17 @@
 import { apiRequest } from "@/services/authApi";
 import type { ApiCategoryAttribute, ApiListing, BillingUnit, ListingFormValues, ListingStatus, RentalListing } from "@/types/rental";
 
-type PaginatedListings = {
+export type PaginatedListings = {
   data: ApiListing[];
   meta?: {
+    current_page?: number;
+    last_page?: number;
+    per_page?: number;
     total?: number;
+  };
+  links?: {
+    next?: string | null;
+    prev?: string | null;
   };
 };
 
@@ -31,6 +38,15 @@ type ListingPayload = {
   availability_rules?: Array<Record<string, unknown>>;
 };
 
+export type ListingQueryParams = {
+  q?: string;
+  category_id?: number | null;
+  listing_type?: ListingFormValues["listing_type"] | "all";
+  city?: string;
+  page?: number;
+  per_page?: number;
+};
+
 const fallbackImage = "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?q=80&w=1200";
 
 function cleanText(value: string) {
@@ -49,6 +65,35 @@ function splitFeatures(value: string) {
     .map((item) => item.trim())
     .filter(Boolean)
     .slice(0, 6);
+}
+
+function listingMediaUrls(values: ListingFormValues) {
+  const urls = values.media_urls?.length ? values.media_urls : values.image_url ? [values.image_url] : [];
+  const uniqueUrls = new Set<string>();
+
+  urls.forEach((url) => {
+    const cleanUrl = cleanText(url);
+
+    if (cleanUrl) {
+      uniqueUrls.add(cleanUrl);
+    }
+  });
+
+  return Array.from(uniqueUrls).slice(0, 8);
+}
+
+function buildListingQuery(params: ListingQueryParams = {}) {
+  const query = Object.entries(params)
+    .flatMap(([key, value]) => {
+      if (value === undefined || value === null || value === "" || value === "all") {
+        return [];
+      }
+
+      return `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`;
+    })
+    .join("&");
+
+  return query ? `?${query}` : "";
 }
 
 function castAttributeValue(attribute: ApiCategoryAttribute | undefined, value: string) {
@@ -76,7 +121,7 @@ function buildPayload(values: ListingFormValues, status?: "draft" | "pending", c
   const availableQuantity = Math.round(positiveNumber(values.available_quantity));
   const price = positiveNumber(values.price, 0);
   const features = splitFeatures(values.features);
-  const imageUrl = cleanText(values.image_url);
+  const mediaUrls = listingMediaUrls(values);
   const city = cleanText(values.city);
   const address = cleanText(values.address);
   const billingUnit: BillingUnit = values.billing_unit;
@@ -111,17 +156,13 @@ function buildPayload(values: ListingFormValues, status?: "draft" | "pending", c
       mobile_features: features,
     },
     attributes,
-    media: imageUrl
-      ? [
-          {
-            media_type: "image",
-            url: imageUrl,
-            alt_text: title,
-            is_primary: true,
-            sort_order: 0,
-          },
-        ]
-      : [],
+    media: mediaUrls.map((url, index) => ({
+      media_type: "image",
+      url,
+      alt_text: title,
+      is_primary: index === 0,
+      sort_order: index,
+    })),
     locations:
       city || address
         ? [
@@ -249,6 +290,13 @@ export function listingToFormValues(listing?: ApiListing): ListingFormValues {
 
       return values;
     }, {}) ?? {};
+  const mediaUrls =
+    listing?.media
+      ?.filter((item) => item.media_type === "image" && item.url)
+      .sort((first, second) => Number(first.sort_order ?? 0) - Number(second.sort_order ?? 0))
+      .map((item) => item.url as string) ?? [];
+  const primaryImageUrl = listing?.primary_media?.url ?? listing?.media?.find((item) => item.url)?.url ?? "";
+  const imageUrls = mediaUrls.length ? mediaUrls : primaryImageUrl ? [primaryImageUrl] : [];
 
   return {
     category_id: listing?.category?.id ?? 2,
@@ -261,7 +309,8 @@ export function listingToFormValues(listing?: ApiListing): ListingFormValues {
     available_quantity: String(quantity),
     price: pricing?.price ? String(pricing.price) : "",
     billing_unit: pricing?.billing_unit ?? "monthly",
-    image_url: listing ? getListingImage(listing) : "",
+    image_url: imageUrls[0] ?? "",
+    media_urls: imageUrls,
     city: location?.city ?? "",
     address: location?.address ?? "",
     features,
@@ -270,16 +319,20 @@ export function listingToFormValues(listing?: ApiListing): ListingFormValues {
 }
 
 export const listingApi = {
-  publicListings() {
-    return apiRequest<PaginatedListings>("/listings?per_page=50");
+  publicListings(params: ListingQueryParams = {}) {
+    return apiRequest<PaginatedListings>(`/listings${buildListingQuery({ per_page: 20, ...params })}`);
   },
 
   show(id: number, token?: string | null) {
     return apiRequest<ApiListing>(`/listings/${id}`, { token });
   },
 
-  vendorListings(token: string) {
-    return apiRequest<PaginatedListings>("/vendor/listings?per_page=50", { token });
+  showBySlug(slug: string, token?: string | null) {
+    return apiRequest<ApiListing>(`/listings/by-slug/${encodeURIComponent(slug)}`, { token });
+  },
+
+  vendorListings(token: string, params: ListingQueryParams = {}) {
+    return apiRequest<PaginatedListings>(`/vendor/listings${buildListingQuery({ per_page: 20, ...params })}`, { token });
   },
 
   create(values: ListingFormValues, status: "draft" | "pending", token: string, categoryAttributes: ApiCategoryAttribute[] = []) {

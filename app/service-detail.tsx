@@ -2,7 +2,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   Animated,
   Dimensions,
   Image,
@@ -15,36 +14,167 @@ import {
 import MapView from "react-native-maps/lib/MapView";
 import Marker from "react-native-maps/lib/MapMarker";
 import { PROVIDER_GOOGLE } from "react-native-maps/lib/ProviderConstants";
-import { Colors, Radius, Shadows, Spacing, Typography } from "../constants/theme";
+import { Colors, Radius, Shadows, Spacing, TouchTarget, Typography } from "../constants/theme";
 import { useListings } from "../context/ListingsContext";
 import { getListingImage, mapApiListingToRentalListing } from "../services/listingApi";
-import type { ApiListing } from "../types/rental";
+import type { ApiListing, IconName, ListingLocation, ListingStatus, ListingType } from "../types/rental";
+import { lightImpactHaptic, selectionHaptic } from "../utils/haptics";
 
 const { width: screenWidth } = Dimensions.get("window");
 const HERO_HEIGHT = 360;
 const COLORS = Colors.light;
 
-const fallbackServiceImages = [
-  "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?q=80&w=1000",
-  "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?q=80&w=1000",
-  "https://images.unsplash.com/photo-1484154218962-a197022b5858?q=80&w=1000",
-  "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?q=80&w=1000",
-  "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?q=80&w=1000",
-];
+const typeLabels: Record<ListingType, string> = {
+  physical: "Rental",
+  service: "Service",
+  hybrid: "Hybrid listing",
+};
 
-const amenities = [
-  { icon: "wifi-outline", label: "WiFi" },
-  { icon: "car-outline", label: "Parking" },
-  { icon: "restaurant-outline", label: "Kitchen" },
-  { icon: "snow-outline", label: "AC" },
-  { icon: "water-outline", label: "Water" },
-  { icon: "flash-outline", label: "Electricity" },
-] as const;
+const statusLabels: Record<ListingStatus, string> = {
+  draft: "Draft",
+  pending: "Pending review",
+  approved: "Approved",
+  published: "Published",
+  paused: "Paused",
+  archived: "Archived",
+};
 
-const contactItems = [
-  { icon: "call-outline", label: "+977 9800000000" },
-  { icon: "mail-outline", label: "contact@example.com" },
-] as const;
+const statusIcons: Record<ListingStatus, IconName> = {
+  draft: "document-outline",
+  pending: "time-outline",
+  approved: "shield-checkmark-outline",
+  published: "checkmark-circle-outline",
+  paused: "pause-circle-outline",
+  archived: "archive-outline",
+};
+
+function cleanText(value: unknown) {
+  if (value === null || value === undefined) {
+    return "";
+  }
+
+  return String(value).trim();
+}
+
+function uniqueItems<T>(items: T[], key: (item: T) => string) {
+  const seen = new Set<string>();
+
+  return items.filter((item) => {
+    const itemKey = key(item).toLowerCase();
+
+    if (!itemKey || seen.has(itemKey)) {
+      return false;
+    }
+
+    seen.add(itemKey);
+    return true;
+  });
+}
+
+function locationLabel(location?: ListingLocation | null) {
+  if (!location) {
+    return "Location not provided";
+  }
+
+  return uniqueItems(
+    [
+      cleanText(location.label),
+      cleanText(location.address),
+      cleanText(location.city),
+      cleanText(location.state),
+      cleanText(location.country),
+    ].filter(Boolean),
+    (item) => item,
+  ).join(", ") || "Location not provided";
+}
+
+function numericCoordinate(value: unknown) {
+  const number = Number(value);
+
+  return Number.isFinite(number) ? number : null;
+}
+
+function listingDescription(listing: ApiListing, location: string) {
+  return (
+    cleanText(listing.description) ||
+    cleanText(listing.summary) ||
+    `Details for this ${typeLabels[listing.listing_type].toLowerCase()} in ${location} will be updated soon.`
+  );
+}
+
+function attributeDisplayValue(attribute: NonNullable<ApiListing["attributes"]>[number]) {
+  if (attribute.display_value) {
+    return cleanText(attribute.display_value);
+  }
+
+  if (typeof attribute.value === "boolean") {
+    return attribute.value ? "Yes" : "No";
+  }
+
+  return cleanText(attribute.value);
+}
+
+function listingDetailItems(listing: ApiListing) {
+  const unit = listing.units?.[0];
+  const attributeItems =
+    listing.attributes
+      ?.map((attribute) => {
+        const value = attributeDisplayValue(attribute);
+        const label = cleanText(attribute.attribute ?? attribute.slug);
+
+        return label && value ? `${label}: ${value}` : value || label;
+      })
+      .filter(Boolean) ?? [];
+
+  return uniqueItems(
+    [
+      listing.category?.title ? `${listing.category.title}` : null,
+      `${typeLabels[listing.listing_type]}`,
+      listing.booking_capacity ? `${listing.booking_capacity} guest capacity` : null,
+      unit?.capacity ? `${unit.capacity} unit capacity` : null,
+      unit?.quantity ? `${unit.quantity} available` : null,
+      ...attributeItems,
+    ].filter((item): item is string => Boolean(item)),
+    (item) => item,
+  ).slice(0, 8);
+}
+
+function listingAmenityItems(listing: ApiListing) {
+  const attributeAmenities =
+    listing.attributes
+      ?.map((attribute) => {
+        const value = attributeDisplayValue(attribute);
+        const label = cleanText(attribute.attribute ?? attribute.slug);
+
+        if (!label) {
+          return value;
+        }
+
+        if (attribute.value_type === "boolean") {
+          return value === "Yes" ? label : "";
+        }
+
+        return value ? `${label}: ${value}` : label;
+      })
+      .filter(Boolean) ?? [];
+  const mobileFeatures = Array.isArray(listing.metadata?.mobile_features)
+    ? listing.metadata.mobile_features.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+    : [];
+
+  return uniqueItems([...mobileFeatures, ...attributeAmenities], (item) => item).slice(0, 10);
+}
+
+function sectionTitleForType(type: ListingType) {
+  if (type === "service") {
+    return "About this service";
+  }
+
+  if (type === "hybrid") {
+    return "About this listing";
+  }
+
+  return "About this place";
+}
 
 export default function ServiceDetailScreen() {
   const { serviceId } = useLocalSearchParams();
@@ -63,18 +193,35 @@ export default function ServiceDetailScreen() {
 
     const mediaUrls = detailListing?.media?.map((item) => item.url).filter((url): url is string => Boolean(url)) ?? [];
 
-    return mediaUrls.length ? mediaUrls : [getListingImage(detailListing), ...fallbackServiceImages].slice(0, 5);
+    return mediaUrls.length ? mediaUrls : [getListingImage(detailListing)];
   }, [detailListing]);
 
   const [isFavorite, setIsFavorite] = useState(false);
+  const [failedImages, setFailedImages] = useState<Record<string, boolean>>({});
   const [currentIndex, setCurrentIndex] = useState(0);
   const scrollX = useRef(new Animated.Value(0)).current;
   const [priceAmount, priceUnit] = (service?.price ?? "").split("/").map((value) => value.trim());
-  const ownerName = detailListing?.owner?.name ?? "Property Owner";
-  const ownerEmail = detailListing?.owner?.email ?? "contact@example.com";
+  const ownerName = detailListing?.owner?.name ?? "Listing owner";
+  const ownerEmail = cleanText(detailListing?.owner?.email);
   const listingLocation = detailListing?.primary_location ?? detailListing?.locations?.[0];
-  const latitude = Number(listingLocation?.latitude ?? 27.7172);
-  const longitude = Number(listingLocation?.longitude ?? 85.324);
+  const latitude = numericCoordinate(listingLocation?.latitude);
+  const longitude = numericCoordinate(listingLocation?.longitude);
+  const mapRegion =
+    latitude !== null && longitude !== null
+      ? {
+          latitude,
+          longitude,
+          latitudeDelta: 0.015,
+          longitudeDelta: 0.015,
+        }
+      : null;
+  const displayLocation = locationLabel(listingLocation);
+  const description = detailListing ? listingDescription(detailListing, displayLocation) : "";
+  const detailItems = detailListing ? listingDetailItems(detailListing) : [];
+  const amenityItems = detailListing ? listingAmenityItems(detailListing) : [];
+  const statusLabel = detailListing ? statusLabels[detailListing.status] : "";
+  const isVerified = detailListing?.status === "approved" || detailListing?.status === "published" || Boolean(detailListing?.approved_at);
+  const badgeLabel = detailListing && isVerified ? `${statusLabel} ${typeLabels[detailListing.listing_type].toLowerCase()}` : statusLabel;
 
   useEffect(() => {
     if (!Number.isFinite(selectedId) || selectedId <= 0) {
@@ -116,15 +263,25 @@ export default function ServiceDetailScreen() {
 
   const renderImage = ({ item }: { item: string }) => (
     <View style={styles.imageSlide}>
-      <Image source={{ uri: item }} style={styles.sliderImage} />
+      {failedImages[item] ? (
+        <View style={[styles.sliderImage, styles.heroImagePlaceholder]}>
+          <Ionicons name="image-outline" size={32} color={COLORS.muted} />
+        </View>
+      ) : (
+        <Image source={{ uri: item }} style={styles.sliderImage} onError={() => setFailedImages((current) => ({ ...current, [item]: true }))} />
+      )}
     </View>
   );
 
-  if (!service) {
+  if (!service || !detailListing) {
     return (
       <View style={[styles.container, styles.center]}>
         {loadingListing ? (
-          <ActivityIndicator color={COLORS.primary} />
+          <View style={styles.detailSkeletonWrap}>
+            <View style={styles.detailHeroSkeleton} />
+            <View style={styles.detailLineSkeleton} />
+            <View style={[styles.detailLineSkeleton, styles.shortLineSkeleton]} />
+          </View>
         ) : (
           <>
             <Ionicons name="alert-circle-outline" size={32} color={COLORS.primary} />
@@ -160,15 +317,31 @@ export default function ServiceDetailScreen() {
           />
 
           <View style={styles.heroActions}>
-            <TouchableOpacity style={styles.circleButton} onPress={() => router.back()}>
+            <TouchableOpacity
+              accessibilityLabel="Go back"
+              accessibilityRole="button"
+              style={styles.circleButton}
+              onPress={() => {
+                lightImpactHaptic();
+                router.back();
+              }}
+            >
               <Ionicons name="arrow-back" size={22} color={COLORS.text} />
             </TouchableOpacity>
 
             <View style={styles.heroRightActions}>
-              <TouchableOpacity style={styles.circleButton}>
+              <TouchableOpacity accessibilityLabel="Share listing" accessibilityRole="button" style={styles.circleButton} onPress={selectionHaptic}>
                 <Ionicons name="share-social-outline" size={20} color={COLORS.text} />
               </TouchableOpacity>
-              <TouchableOpacity style={styles.circleButton} onPress={() => setIsFavorite(!isFavorite)}>
+              <TouchableOpacity
+                accessibilityLabel={isFavorite ? "Remove from saved listings" : "Save listing"}
+                accessibilityRole="button"
+                style={styles.circleButton}
+                onPress={() => {
+                  selectionHaptic();
+                  setIsFavorite(!isFavorite);
+                }}
+              >
                 <Ionicons
                   name={isFavorite ? "heart" : "heart-outline"}
                   size={21}
@@ -211,11 +384,11 @@ export default function ServiceDetailScreen() {
         <View style={styles.summaryCard}>
           <View style={styles.titleRow}>
             <View style={styles.titleBlock}>
-              <Text style={styles.badge}>Verified rental</Text>
+              <Text style={styles.badge}>{badgeLabel}</Text>
               <Text style={styles.title}>{service.title}</Text>
               <View style={styles.locationRow}>
                 <Ionicons name="location-outline" size={16} color={COLORS.muted} />
-                <Text style={styles.location}>{service.location}, Kathmandu, Nepal</Text>
+                <Text style={styles.location}>{displayLocation}</Text>
               </View>
             </View>
 
@@ -232,10 +405,10 @@ export default function ServiceDetailScreen() {
         </View>
 
         <View style={styles.factRow}>
-          {service.features.map((feature, index) => (
+          {detailItems.map((feature, index) => (
             <View key={feature} style={styles.factItem}>
               <Ionicons
-                name={index === 0 ? "bed-outline" : index === 1 ? "water-outline" : "resize-outline"}
+                name={index === 0 ? "pricetag-outline" : index === 1 ? statusIcons[detailListing.status] : "options-outline"}
                 size={20}
                 color={COLORS.primary}
               />
@@ -243,31 +416,29 @@ export default function ServiceDetailScreen() {
             </View>
           ))}
           <View style={styles.factItem}>
-            <Ionicons name="shield-checkmark-outline" size={20} color={COLORS.success} />
-            <Text style={styles.factText}>Verified</Text>
+            <Ionicons name={statusIcons[detailListing.status]} size={20} color={isVerified ? COLORS.success : COLORS.warning} />
+            <Text style={styles.factText}>{statusLabel}</Text>
           </View>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>About this place</Text>
-          <Text style={styles.description}>
-            A comfortable rental in the heart of {service.location}, ideal for families or professionals.
-            The space has practical amenities, natural light, good ventilation, and quick access to
-            public transportation and daily essentials.
-          </Text>
+          <Text style={styles.sectionTitle}>{sectionTitleForType(detailListing.listing_type)}</Text>
+          <Text style={styles.description}>{description}</Text>
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Amenities</Text>
-          <View style={styles.amenitiesGrid}>
-            {amenities.map((amenity) => (
-              <View key={amenity.label} style={styles.amenityItem}>
-                <Ionicons name={amenity.icon} size={20} color={COLORS.primary} />
-                <Text style={styles.amenityText}>{amenity.label}</Text>
-              </View>
-            ))}
+        {amenityItems.length ? (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Details and amenities</Text>
+            <View style={styles.amenitiesGrid}>
+              {amenityItems.map((amenity) => (
+                <View key={amenity} style={styles.amenityItem}>
+                  <Ionicons name="checkmark-circle-outline" size={20} color={COLORS.primary} />
+                  <Text style={styles.amenityText}>{amenity}</Text>
+                </View>
+              ))}
+            </View>
           </View>
-        </View>
+        ) : null}
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Listed by</Text>
@@ -277,56 +448,64 @@ export default function ServiceDetailScreen() {
             </View>
             <View style={styles.ownerInfo}>
               <Text style={styles.ownerName}>{ownerName}</Text>
-              <Text style={styles.ownerMeta}>Verified seller · Usually replies fast</Text>
+              <Text style={styles.ownerMeta}>
+                {isVerified ? "Verified listing owner" : `${typeLabels[detailListing.listing_type]} owner`}
+              </Text>
             </View>
-            <View style={styles.ownerBadge}>
-              <Ionicons name="checkmark" size={16} color="white" />
-            </View>
+            {isVerified ? (
+              <View style={styles.ownerBadge}>
+                <Ionicons name="checkmark" size={16} color="white" />
+              </View>
+            ) : null}
           </View>
 
-          <View style={styles.contactList}>
-            {contactItems.map((item) => (
-              <View key={item.label} style={styles.contactRow}>
-                <Ionicons name={item.icon} size={20} color={COLORS.primary} />
-                <Text style={styles.contactText}>{item.icon === "mail-outline" ? ownerEmail : item.label}</Text>
+          {ownerEmail ? (
+            <View style={styles.contactList}>
+              <View style={styles.contactRow}>
+                <Ionicons name="mail-outline" size={20} color={COLORS.primary} />
+                <Text style={styles.contactText}>{ownerEmail}</Text>
               </View>
-            ))}
-          </View>
+            </View>
+          ) : null}
         </View>
 
         <View style={styles.section}>
           <View style={styles.mapHeader}>
             <View>
               <Text style={styles.sectionTitle}>Location</Text>
-              <Text style={styles.mapAddress}>{service.location}, Kathmandu, Nepal</Text>
+              <Text style={styles.mapAddress}>{displayLocation}</Text>
             </View>
-            <TouchableOpacity style={styles.directionsBtn}>
-              <Ionicons name="navigate" size={17} color={COLORS.primary} />
-              <Text style={styles.directionsBtnText}>Directions</Text>
-            </TouchableOpacity>
+            {mapRegion ? (
+              <TouchableOpacity accessibilityLabel="Get directions" accessibilityRole="button" style={styles.directionsBtn} onPress={selectionHaptic}>
+                <Ionicons name="navigate" size={17} color={COLORS.primary} />
+                <Text style={styles.directionsBtnText}>Directions</Text>
+              </TouchableOpacity>
+            ) : null}
           </View>
 
-          <View style={styles.mapContainer}>
-            <MapView
-              style={styles.map}
-              provider={PROVIDER_GOOGLE}
-              initialRegion={{
-                latitude,
-                longitude,
-                latitudeDelta: 0.015,
-                longitudeDelta: 0.015,
-              }}
-            >
-              <Marker
-                coordinate={{
-                  latitude,
-                  longitude,
-                }}
-                title={service.title}
-                description={service.location}
-              />
-            </MapView>
-          </View>
+          {mapRegion ? (
+            <View style={styles.mapContainer}>
+              <MapView
+                style={styles.map}
+                provider={PROVIDER_GOOGLE}
+                initialRegion={mapRegion}
+              >
+                <Marker
+                  coordinate={{
+                    latitude: mapRegion.latitude,
+                    longitude: mapRegion.longitude,
+                  }}
+                  title={service.title}
+                  description={displayLocation}
+                />
+              </MapView>
+            </View>
+          ) : (
+            <View style={styles.noMapBox}>
+              <Ionicons name="map-outline" size={22} color={COLORS.primary} />
+              <Text style={styles.noMapText}>Map coordinates are not available for this listing.</Text>
+            </View>
+          )}
         </View>
       </ScrollView>
 
@@ -335,10 +514,10 @@ export default function ServiceDetailScreen() {
           <Text style={styles.bottomPriceAmount}>{priceAmount}</Text>
           <Text style={styles.bottomPriceUnit}>{priceUnit ? `/${priceUnit}` : ""}</Text>
         </View>
-        <TouchableOpacity style={styles.messageBtn}>
+        <TouchableOpacity accessibilityLabel="Message listing owner" accessibilityRole="button" style={styles.messageBtn} onPress={selectionHaptic}>
           <Ionicons name="chatbubble-outline" size={20} color={COLORS.primary} />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.bookBtn}>
+        <TouchableOpacity accessibilityLabel="Book this listing" accessibilityRole="button" style={styles.bookBtn} onPress={lightImpactHaptic}>
           <Text style={styles.bookBtnText}>Book Now</Text>
         </TouchableOpacity>
       </View>
@@ -382,6 +561,25 @@ const styles = StyleSheet.create({
     ...Typography.label,
     fontWeight: "900",
   },
+  detailSkeletonWrap: {
+    width: "100%",
+    gap: Spacing.md,
+  },
+  detailHeroSkeleton: {
+    backgroundColor: COLORS.border,
+    borderRadius: Radius.lg,
+    height: 220,
+    width: "100%",
+  },
+  detailLineSkeleton: {
+    backgroundColor: COLORS.border,
+    borderRadius: Radius.pill,
+    height: 18,
+    width: "86%",
+  },
+  shortLineSkeleton: {
+    width: "56%",
+  },
   contentContainer: {
     paddingBottom: 126,
   },
@@ -398,6 +596,11 @@ const styles = StyleSheet.create({
     height: "100%",
     resizeMode: "cover",
   },
+  heroImagePlaceholder: {
+    alignItems: "center",
+    backgroundColor: COLORS.imagePlaceholder,
+    justifyContent: "center",
+  },
   heroActions: {
     position: "absolute",
     top: 46,
@@ -412,8 +615,8 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   circleButton: {
-    width: 42,
-    height: 42,
+    width: TouchTarget.min,
+    height: TouchTarget.min,
     borderRadius: Radius.pill,
     alignItems: "center",
     justifyContent: "center",
@@ -673,6 +876,21 @@ const styles = StyleSheet.create({
   map: {
     width: "100%",
     height: "100%",
+  },
+  noMapBox: {
+    alignItems: "center",
+    backgroundColor: "#F7F9FD",
+    borderColor: "#EEF1F7",
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: Spacing.sm,
+    padding: Spacing.md,
+  },
+  noMapText: {
+    color: COLORS.muted,
+    flex: 1,
+    ...Typography.label,
   },
   bottomBar: {
     position: "absolute",

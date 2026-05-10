@@ -1,13 +1,16 @@
 import { Ionicons } from "@expo/vector-icons";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SearchBar } from "@/components/SearchBar";
-import { Colors, Radius, Spacing, Typography } from "@/constants/theme";
+import { Colors, Radius, Spacing, TouchTarget, Typography } from "@/constants/theme";
+import { lightImpactHaptic } from "@/utils/haptics";
 
 type AppHeaderProps = {
   eyebrow: string;
   title: string;
   subtitle?: string;
   icon?: keyof typeof Ionicons.glyphMap;
+  iconAccessibilityLabel?: string;
+  onIconPress?: () => void;
   searchPlaceholder?: string;
   searchValue?: string;
   onSearchChange?: (value: string) => void;
@@ -21,6 +24,8 @@ export function AppHeader({
   title,
   subtitle,
   icon = "notifications-outline",
+  iconAccessibilityLabel = "Header action",
+  onIconPress,
   searchPlaceholder,
   searchValue,
   onSearchChange,
@@ -36,9 +41,24 @@ export function AppHeader({
           <Text style={styles.title}>{title}</Text>
         </View>
 
-        <TouchableOpacity activeOpacity={0.8} style={styles.iconButton}>
-          <Ionicons name={icon} size={21} color="white" />
-        </TouchableOpacity>
+        {onIconPress ? (
+          <TouchableOpacity
+            accessibilityLabel={iconAccessibilityLabel}
+            accessibilityRole="button"
+            activeOpacity={0.8}
+            style={styles.iconButton}
+            onPress={() => {
+              lightImpactHaptic();
+              onIconPress();
+            }}
+          >
+            <Ionicons name={icon} size={21} color="white" />
+          </TouchableOpacity>
+        ) : (
+          <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.iconButton}>
+            <Ionicons name={icon} size={21} color="white" />
+          </View>
+        )}
       </View>
 
       {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
@@ -77,7 +97,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   eyebrow: {
-    color: "rgba(255,255,255,0.72)",
+    color: Colors.light.onPrimaryMuted,
     marginBottom: Spacing.xs,
     ...Typography.label,
   },
@@ -86,14 +106,14 @@ const styles = StyleSheet.create({
     ...Typography.screenTitle,
   },
   subtitle: {
-    color: "rgba(255,255,255,0.82)",
+    color: Colors.light.onPrimarySubtle,
     ...Typography.body,
   },
   iconButton: {
-    width: 42,
-    height: 42,
+    width: TouchTarget.min,
+    height: TouchTarget.min,
     borderRadius: Radius.pill,
-    backgroundColor: "rgba(255,255,255,0.14)",
+    backgroundColor: Colors.light.onPrimarySurface,
     alignItems: "center",
     justifyContent: "center",
   },

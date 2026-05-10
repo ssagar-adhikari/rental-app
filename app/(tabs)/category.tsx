@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useMemo, useState } from "react";
-import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, View } from "react-native";
+import { FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { AppHeader } from "@/components/AppHeader";
 import CategoryItem from "@/components/CategoryItem";
 import { Screen } from "@/components/Screen";
@@ -9,7 +9,7 @@ import { useCategories } from "@/context/CategoriesContext";
 import type { Category } from "@/types/rental";
 
 export default function CategoryScreen() {
-  const { categories, loading, refreshCategories } = useCategories();
+  const { categories, error, loading, refreshCategories } = useCategories();
   const [searchText, setSearchText] = useState("");
 
   const filteredCategories = useMemo(() => {
@@ -39,6 +39,16 @@ export default function CategoryScreen() {
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={
           <View>
+            {error ? (
+              <View style={styles.errorBox}>
+                <Ionicons name="alert-circle-outline" size={18} color={Colors.light.danger} />
+                <Text style={styles.errorText}>{error}</Text>
+                <TouchableOpacity activeOpacity={0.8} style={styles.retryButton} onPress={refreshCategories}>
+                  <Text style={styles.retryText}>Retry</Text>
+                </TouchableOpacity>
+              </View>
+            ) : null}
+
             <View style={styles.statsRow}>
               <View style={styles.statPill}>
                 <Ionicons name="sparkles-outline" size={16} color={Colors.light.success} />
@@ -61,8 +71,8 @@ export default function CategoryScreen() {
         }
         ListEmptyComponent={
           loading ? (
-            <View style={styles.emptyState}>
-              <ActivityIndicator color={Colors.light.primary} />
+            <View style={styles.skeletonGrid}>
+              {[0, 1, 2, 3].map((item) => <View key={item} style={styles.categorySkeleton} />)}
             </View>
           ) : (
             <View style={styles.emptyState}>
@@ -89,6 +99,33 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: Spacing.sm,
     marginBottom: 22,
+  },
+  errorBox: {
+    alignItems: "center",
+    backgroundColor: "#FEF2F2",
+    borderColor: "#FAD4D4",
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: Spacing.sm,
+    marginBottom: Spacing.lg,
+    padding: Spacing.md,
+  },
+  errorText: {
+    color: Colors.light.danger,
+    flex: 1,
+    ...Typography.label,
+  },
+  retryButton: {
+    backgroundColor: Colors.light.surface,
+    borderRadius: Radius.sm,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+  },
+  retryText: {
+    color: Colors.light.primary,
+    ...Typography.label,
+    fontWeight: "900",
   },
   statPill: {
     flexDirection: "row",
@@ -132,6 +169,18 @@ const styles = StyleSheet.create({
   emptyState: {
     alignItems: "center",
     paddingVertical: 42,
+  },
+  skeletonGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: Spacing.lg,
+    paddingVertical: Spacing.md,
+  },
+  categorySkeleton: {
+    backgroundColor: Colors.light.border,
+    borderRadius: Radius.lg,
+    height: 150,
+    width: "47%",
   },
   emptyTitle: {
     color: Colors.light.text,

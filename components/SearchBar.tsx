@@ -16,7 +16,7 @@ export function SearchBar({ focused, style, ...props }: SearchBarProps) {
         style={[styles.input, style]}
         {...props}
       />
-      <View style={styles.badge}>
+      <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.badge}>
         <Ionicons name="options-outline" size={17} color={Colors.light.primary} />
       </View>
     </View>

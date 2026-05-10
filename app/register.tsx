@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { router, type Href } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -9,6 +9,7 @@ import { useUserLocation } from "@/context/LocationContext";
 import { ApiError } from "@/services/authApi";
 import type { UserRole } from "@/types/auth";
 import { getPostAuthRoute } from "@/utils/authRoutes";
+import { getPasswordRules, getPasswordStrength, isStrongPassword, isValidEmail } from "@/utils/formValidation";
 
 type RegisterRole = Exclude<UserRole, "admin">;
 
@@ -18,8 +19,8 @@ const roles: { label: string; value: RegisterRole; icon: keyof typeof Ionicons.g
 ];
 
 export default function RegisterScreen() {
-  const { activeRole, register } = useAuth();
-  const { location } = useUserLocation();
+  const { activeRole, register, resendEmailVerification } = useAuth();
+  const { error: locationError, loading: locating, location, requestCurrentLocation } = useUserLocation();
   const [selectedRoles, setSelectedRoles] = useState<RegisterRole[]>(["customer"]);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -27,6 +28,28 @@ export default function RegisterScreen() {
   const [passwordConfirmation, setPasswordConfirmation] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [postRegisterRoute, setPostRegisterRoute] = useState<Href | null>(null);
+  const [resendingVerification, setResendingVerification] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showPasswordConfirmation, setShowPasswordConfirmation] = useState(false);
+  const passwordRules = useMemo(() => getPasswordRules(password), [password]);
+  const passwordStrength = useMemo(() => getPasswordStrength(password), [password]);
+  const validRegistrationLocation = location?.source === "manual" || location?.source === "gps";
+  const registrationLocation = validRegistrationLocation ? location : null;
+  const nameError = name && name.trim().length < 2 ? "Enter your full name." : null;
+  const emailError = email && !isValidEmail(email) ? "Enter a valid email address." : null;
+  const passwordError = password && !isStrongPassword(password) ? "Password does not meet all rules yet." : null;
+  const confirmationError =
+    passwordConfirmation && passwordConfirmation !== password ? "Passwords do not match." : null;
+  const canSubmit =
+    selectedRoles.length > 0 &&
+    name.trim().length >= 2 &&
+    isValidEmail(email) &&
+    isStrongPassword(password) &&
+    passwordConfirmation === password &&
+    validRegistrationLocation &&
+    !postRegisterRoute;
 
   function toggleRole(role: RegisterRole) {
     setSelectedRoles((current) => {
@@ -39,12 +62,18 @@ export default function RegisterScreen() {
   }
 
   async function submit() {
+    if (!canSubmit) {
+      setError("Complete the required fields before creating your account.");
+      return;
+    }
+
     setLoading(true);
     setError(null);
+    setSuccess(null);
 
     try {
-      if (!location || location.source !== "manual") {
-        setError("Please set your location from the map before creating an account.");
+      if (!location || !validRegistrationLocation) {
+        setError("Use your current location or choose your area on the map before creating an account.");
         return;
       }
 
@@ -57,11 +86,26 @@ export default function RegisterScreen() {
         latitude: location.latitude,
         longitude: location.longitude,
       });
-      router.replace(getPostAuthRoute(user, activeRole));
+      setSuccess("Account created. Please verify your email when the verification message arrives.");
+      setPostRegisterRoute(getPostAuthRoute(user, activeRole));
     } catch (exception) {
       setError(exception instanceof ApiError ? exception.message : "Unable to create account.");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function resendVerification() {
+    setResendingVerification(true);
+    setError(null);
+
+    try {
+      await resendEmailVerification();
+      setSuccess("Verification email sent again.");
+    } catch (exception) {
+      setError(exception instanceof ApiError ? exception.message : "Unable to resend verification email.");
+    } finally {
+      setResendingVerification(false);
     }
   }
 
@@ -71,7 +115,7 @@ export default function RegisterScreen() {
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           <View style={styles.header}>
             <View style={styles.headerTop}>
-              <TouchableOpacity activeOpacity={0.8} style={styles.backButton} onPress={() => router.back()}>
+              <TouchableOpacity accessibilityLabel="Go back" accessibilityRole="button" activeOpacity={0.8} style={styles.backButton} onPress={() => router.back()}>
                 <Ionicons name="arrow-back" size={22} color="white" />
               </TouchableOpacity>
 
@@ -125,7 +169,7 @@ export default function RegisterScreen() {
                 <Text style={styles.fieldLabel}>Location</Text>
                 <TouchableOpacity
                   activeOpacity={0.86}
-                  style={[styles.locationSelector, location?.source === "manual" && styles.selectedLocationSelector]}
+                  style={[styles.locationSelector, validRegistrationLocation && styles.selectedLocationSelector]}
                   onPress={() => router.push("/location-picker" as Href)}
                 >
                   <View style={styles.locationIcon}>
@@ -133,16 +177,28 @@ export default function RegisterScreen() {
                   </View>
                   <View style={styles.locationTextWrap}>
                     <Text style={styles.locationTitle}>
-                      {location?.source === "manual" ? location.label : "Set location on map"}
+                      {registrationLocation ? registrationLocation.label : "Set your location"}
                     </Text>
                     <Text style={styles.locationSubtitle}>
-                      {location?.source === "manual"
-                        ? `${location.latitude.toFixed(5)}, ${location.longitude.toFixed(5)}`
-                        : "Required for registration"}
+                      {registrationLocation
+                        ? `${registrationLocation.source === "gps" ? "Current GPS" : "Map location"} - ${registrationLocation.latitude.toFixed(5)}, ${registrationLocation.longitude.toFixed(5)}`
+                        : "Use GPS or choose your area on the map"}
                     </Text>
                   </View>
                   <Ionicons name="chevron-forward" size={20} color={Colors.light.primary} />
                 </TouchableOpacity>
+                <TouchableOpacity activeOpacity={0.85} disabled={locating} style={styles.gpsButton} onPress={requestCurrentLocation}>
+                  {locating ? (
+                    <Ionicons name="sync-outline" size={17} color={Colors.light.primary} />
+                  ) : (
+                    <Ionicons name="navigate-outline" size={17} color={Colors.light.primary} />
+                  )}
+                  <Text style={styles.gpsButtonText}>{locating ? "Finding current location..." : "Use current GPS location"}</Text>
+                </TouchableOpacity>
+                {location?.source === "default" ? (
+                  <Text style={styles.fieldError}>Kathmandu is only a fallback. Confirm your actual location before registration.</Text>
+                ) : null}
+                {locationError ? <Text style={styles.fieldError}>{locationError}</Text> : null}
               </View>
 
               <View style={styles.fieldGroup}>
@@ -158,6 +214,7 @@ export default function RegisterScreen() {
                     value={name}
                   />
                 </View>
+                {nameError ? <Text style={styles.fieldError}>{nameError}</Text> : null}
               </View>
 
               <View style={styles.fieldGroup}>
@@ -175,6 +232,7 @@ export default function RegisterScreen() {
                     value={email}
                   />
                 </View>
+                {emailError ? <Text style={styles.fieldError}>{emailError}</Text> : null}
               </View>
 
               <View style={styles.fieldGroup}>
@@ -186,11 +244,46 @@ export default function RegisterScreen() {
                     onChangeText={setPassword}
                     placeholder="Create password"
                     placeholderTextColor="#98A1B3"
-                    secureTextEntry
+                    secureTextEntry={!showPassword}
                     style={styles.input}
                     value={password}
                   />
+                  <TouchableOpacity
+                    accessibilityLabel={showPassword ? "Hide password" : "Show password"}
+                    activeOpacity={0.7}
+                    hitSlop={8}
+                    onPress={() => setShowPassword((current) => !current)}
+                    style={styles.eyeButton}
+                  >
+                    <Ionicons
+                      name={showPassword ? "eye-off-outline" : "eye-outline"}
+                      size={19}
+                      color={Colors.light.muted}
+                    />
+                  </TouchableOpacity>
                 </View>
+                <View style={styles.strengthWrap}>
+                  <View style={styles.strengthTrack}>
+                    <View
+                      style={[
+                        styles.strengthFill,
+                        { backgroundColor: passwordStrength.color, width: `${(passwordStrength.value / 3) * 100}%` },
+                      ]}
+                    />
+                  </View>
+                  <Text style={[styles.strengthText, { color: passwordStrength.color }]}>{passwordStrength.label}</Text>
+                </View>
+                {passwordRules.map((rule) => (
+                  <View key={rule.label} style={styles.ruleRow}>
+                    <Ionicons
+                      name={rule.valid ? "checkmark-circle" : "ellipse-outline"}
+                      size={15}
+                      color={rule.valid ? Colors.light.success : Colors.light.muted}
+                    />
+                    <Text style={[styles.ruleText, rule.valid && styles.ruleTextValid]}>{rule.label}</Text>
+                  </View>
+                ))}
+                {passwordError ? <Text style={styles.fieldError}>{passwordError}</Text> : null}
               </View>
 
               <View style={styles.fieldGroup}>
@@ -202,12 +295,33 @@ export default function RegisterScreen() {
                     onChangeText={setPasswordConfirmation}
                     placeholder="Repeat password"
                     placeholderTextColor="#98A1B3"
-                    secureTextEntry
+                    secureTextEntry={!showPasswordConfirmation}
                     style={styles.input}
                     value={passwordConfirmation}
                   />
+                  <TouchableOpacity
+                    accessibilityLabel={showPasswordConfirmation ? "Hide password" : "Show password"}
+                    activeOpacity={0.7}
+                    hitSlop={8}
+                    onPress={() => setShowPasswordConfirmation((current) => !current)}
+                    style={styles.eyeButton}
+                  >
+                    <Ionicons
+                      name={showPasswordConfirmation ? "eye-off-outline" : "eye-outline"}
+                      size={19}
+                      color={Colors.light.muted}
+                    />
+                  </TouchableOpacity>
                 </View>
+                {confirmationError ? <Text style={styles.fieldError}>{confirmationError}</Text> : null}
               </View>
+
+              {success ? (
+                <View style={styles.successBox}>
+                  <Ionicons name="checkmark-circle-outline" size={18} color={Colors.light.success} />
+                  <Text style={styles.success}>{success}</Text>
+                </View>
+              ) : null}
 
               {error ? (
                 <View style={styles.errorBox}>
@@ -216,10 +330,28 @@ export default function RegisterScreen() {
                 </View>
               ) : null}
 
-              <TouchableOpacity activeOpacity={0.88} disabled={loading} style={[styles.submitButton, loading && styles.disabledButton]} onPress={submit}>
-                <Ionicons name="arrow-forward" size={20} color="white" />
-                <Text style={styles.submitText}>{loading ? "Please wait..." : "Create account"}</Text>
-              </TouchableOpacity>
+              {postRegisterRoute ? (
+                <>
+                  <TouchableOpacity activeOpacity={0.88} style={styles.submitButton} onPress={() => router.replace(postRegisterRoute)}>
+                    <Ionicons name="arrow-forward" size={20} color="white" />
+                    <Text style={styles.submitText}>Continue</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    activeOpacity={0.88}
+                    disabled={resendingVerification}
+                    style={styles.secondaryButton}
+                    onPress={resendVerification}
+                  >
+                    <Ionicons name="mail-outline" size={19} color={Colors.light.primary} />
+                    <Text style={styles.secondaryButtonText}>{resendingVerification ? "Sending..." : "Resend verification email"}</Text>
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <TouchableOpacity activeOpacity={0.88} disabled={loading || !canSubmit} style={[styles.submitButton, (loading || !canSubmit) && styles.disabledButton]} onPress={submit}>
+                  <Ionicons name="arrow-forward" size={20} color="white" />
+                  <Text style={styles.submitText}>{loading ? "Please wait..." : "Create account"}</Text>
+                </TouchableOpacity>
+              )}
             </View>
 
             <TouchableOpacity activeOpacity={0.75} style={styles.singleLink} onPress={() => router.push("/login" as Href)}>
@@ -393,6 +525,11 @@ const styles = StyleSheet.create({
     paddingVertical: 0,
     ...Typography.body,
   },
+  eyeButton: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: Spacing.xs,
+  },
   locationSelector: {
     alignItems: "center",
     backgroundColor: "#FBFCFF",
@@ -406,6 +543,17 @@ const styles = StyleSheet.create({
   },
   selectedLocationSelector: {
     borderColor: Colors.light.primary,
+  },
+  gpsButton: {
+    alignItems: "center",
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    gap: Spacing.xs,
+    paddingVertical: Spacing.xs,
+  },
+  gpsButtonText: {
+    color: Colors.light.primary,
+    ...Typography.label,
   },
   locationIcon: {
     alignItems: "center",
@@ -441,6 +589,22 @@ const styles = StyleSheet.create({
   disabledButton: {
     opacity: 0.7,
   },
+  secondaryButton: {
+    alignItems: "center",
+    backgroundColor: Colors.light.surface,
+    borderColor: Colors.light.primary,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: Spacing.sm,
+    justifyContent: "center",
+    minHeight: 52,
+  },
+  secondaryButtonText: {
+    color: Colors.light.primary,
+    ...Typography.label,
+    fontWeight: "900",
+  },
   submitText: {
     color: "white",
     ...Typography.label,
@@ -460,6 +624,54 @@ const styles = StyleSheet.create({
     color: Colors.light.danger,
     flex: 1,
     ...Typography.label,
+  },
+  successBox: {
+    alignItems: "flex-start",
+    backgroundColor: "#EAF8F0",
+    borderColor: "#BFE8D1",
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: Spacing.sm,
+    padding: Spacing.md,
+  },
+  success: {
+    color: Colors.light.success,
+    flex: 1,
+    ...Typography.label,
+  },
+  fieldError: {
+    color: Colors.light.danger,
+    ...Typography.eyebrow,
+  },
+  strengthWrap: {
+    gap: Spacing.xs,
+  },
+  strengthTrack: {
+    backgroundColor: Colors.light.surfaceMuted,
+    borderRadius: Radius.pill,
+    height: 7,
+    overflow: "hidden",
+  },
+  strengthFill: {
+    borderRadius: Radius.pill,
+    height: "100%",
+  },
+  strengthText: {
+    ...Typography.eyebrow,
+    fontWeight: "900",
+  },
+  ruleRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: Spacing.xs,
+  },
+  ruleText: {
+    color: Colors.light.muted,
+    ...Typography.eyebrow,
+  },
+  ruleTextValid: {
+    color: Colors.light.success,
   },
   singleLink: {
     alignItems: "center",

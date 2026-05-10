@@ -1,82 +1,14 @@
 import { Platform } from "react-native";
 import * as SecureStore from "expo-secure-store";
-import type { ApiEnvelope, AuthPayload, AuthUser, LoginResponse, UserRole } from "@/types/auth";
+import { apiRequest } from "@/services/apiClient";
+import type { AuthPayload, AuthUser, LoginResponse, UserRole } from "@/types/auth";
 
-function resolveApiUrl() {
-  const apiUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
+export { ApiError, apiRequest } from "@/services/apiClient";
+export type { RequestOptions } from "@/services/apiClient";
 
-  if (!apiUrl) {
-    throw new Error("Missing EXPO_PUBLIC_API_URL. Add it to your .env file and restart Expo.");
-  }
-
-  return apiUrl.replace(/\/+$/, "");
-}
-
-const API_URL = resolveApiUrl();
 const TOKEN_KEY = "rental_marketplace_auth_token";
 const ACTIVE_ROLE_KEY = "rental_marketplace_active_role";
-const REQUEST_TIMEOUT_MS = 15000;
 type AppRole = Exclude<UserRole, "admin">;
-
-export type RequestOptions = {
-  method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
-  body?: unknown;
-  token?: string | null;
-};
-
-export class ApiError extends Error {
-  constructor(
-    message: string,
-    public readonly status: number,
-    public readonly errors: Record<string, string[]> = {},
-  ) {
-    super(message);
-  }
-}
-
-export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const headers: Record<string, string> = {
-    Accept: "application/json",
-  };
-
-  if (options.body) {
-    headers["Content-Type"] = "application/json";
-  }
-
-  if (options.token) {
-    headers.Authorization = `Bearer ${options.token}`;
-  }
-
-  let response: Response;
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-
-  try {
-    response = await fetch(`${API_URL}${path}`, {
-      method: options.method ?? "GET",
-      headers,
-      body: options.body ? JSON.stringify(options.body) : undefined,
-      signal: controller.signal,
-    });
-  } catch (error) {
-    const timedOut = error instanceof Error && error.name === "AbortError";
-    const detail = timedOut ? "The request timed out." : "The network request failed.";
-
-    throw new ApiError(`${detail} Cannot connect to API at ${API_URL}. Make sure Laravel is reachable from this device.`, 0);
-  } finally {
-    clearTimeout(timeout);
-  }
-
-  const json = (await response.json().catch(() => null)) as ApiEnvelope<T> | null;
-
-  if (!response.ok || !json?.success) {
-    const firstError = json?.errors ? Object.values(json.errors).flat()[0] : null;
-
-    throw new ApiError(firstError ?? json?.message ?? "Request failed.", response.status, json?.errors ?? {});
-  }
-
-  return json.data;
-}
 
 export async function getStoredToken(): Promise<string | null> {
   if (Platform.OS === "web") {
@@ -181,7 +113,7 @@ export const authApi = {
   },
 
   logout(token: string) {
-    return apiRequest<null>("/logout", { method: "POST", token });
+    return apiRequest<null>("/logout", { method: "POST", token, skipAuthRefresh: true });
   },
 
   forgotPassword(email: string) {
@@ -201,6 +133,15 @@ export const authApi = {
       method: "POST",
       body: payload,
     });
+  },
+
+  resendEmailVerification(token: string) {
+    return apiRequest<null>("/email/verification-notification", { method: "POST", token });
+  },
+
+  verifyEmail(id: string, hash: string, query: string) {
+    const suffix = query ? (query.startsWith("?") ? query : `?${query}`) : "";
+    return apiRequest<null>(`/email/verify/${encodeURIComponent(id)}/${encodeURIComponent(hash)}${suffix}`);
   },
 
   enableTwoFactor(token: string) {

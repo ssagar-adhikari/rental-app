@@ -5,14 +5,22 @@ import { Ionicons } from "@expo/vector-icons";
 import { Screen } from "@/components/Screen";
 import { Colors, Radius, Spacing, Typography } from "@/constants/theme";
 import { ApiError, authApi } from "@/services/authApi";
+import { isValidEmail } from "@/utils/formValidation";
 
 export default function ForgotPasswordScreen() {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const emailError = email && !isValidEmail(email) ? "Enter a valid email address." : null;
+  const canSubmit = isValidEmail(email);
 
   async function submit() {
+    if (!canSubmit) {
+      setError("Enter a valid email address.");
+      return;
+    }
+
     setLoading(true);
     setMessage(null);
     setError(null);
@@ -51,11 +59,22 @@ export default function ForgotPasswordScreen() {
             style={styles.input}
             value={email}
           />
+          {emailError ? <Text style={styles.fieldError}>{emailError}</Text> : null}
 
-          {message ? <Text style={styles.message}>{message}</Text> : null}
-          {error ? <Text style={styles.error}>{error}</Text> : null}
+          {message ? (
+            <View style={styles.messageBox}>
+              <Ionicons name="checkmark-circle-outline" size={18} color={Colors.light.success} />
+              <Text style={styles.message}>{message}</Text>
+            </View>
+          ) : null}
+          {error ? (
+            <View style={styles.errorBox}>
+              <Ionicons name="alert-circle-outline" size={18} color={Colors.light.danger} />
+              <Text style={styles.error}>{error}</Text>
+            </View>
+          ) : null}
 
-          <Pressable disabled={loading} style={[styles.submitButton, loading && styles.disabledButton]} onPress={submit}>
+          <Pressable disabled={loading || !canSubmit} style={[styles.submitButton, (loading || !canSubmit) && styles.disabledButton]} onPress={submit}>
             <Text style={styles.submitText}>{loading ? "Please wait..." : "Send reset link"}</Text>
           </Pressable>
         </View>
@@ -125,11 +144,37 @@ const styles = StyleSheet.create({
     fontWeight: "900",
   },
   message: {
-    color: "#14804a",
+    color: Colors.light.success,
+    flex: 1,
     ...Typography.body,
   },
   error: {
-    color: "#c0392b",
+    color: Colors.light.danger,
+    flex: 1,
     ...Typography.body,
+  },
+  fieldError: {
+    color: Colors.light.danger,
+    ...Typography.eyebrow,
+  },
+  messageBox: {
+    alignItems: "flex-start",
+    backgroundColor: "#EAF8F0",
+    borderColor: "#BFE8D1",
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: Spacing.sm,
+    padding: Spacing.md,
+  },
+  errorBox: {
+    alignItems: "flex-start",
+    backgroundColor: "#FEF2F2",
+    borderColor: "#FAD4D4",
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: Spacing.sm,
+    padding: Spacing.md,
   },
 });

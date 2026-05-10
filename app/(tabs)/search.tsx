@@ -1,25 +1,95 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { useState } from "react";
-import { FlatList, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { useEffect, useMemo, useState } from "react";
+import { FlatList, Image, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { AppHeader } from "@/components/AppHeader";
 import { Screen } from "@/components/Screen";
 import { SectionHeader } from "@/components/SectionHeader";
 import { Colors, Radius, Shadows, Spacing, Typography } from "@/constants/theme";
 import { useCategories } from "@/context/CategoriesContext";
 import { useListings } from "@/context/ListingsContext";
-import type { RentalListing } from "@/types/rental";
+import { mapApiListingToRentalListing } from "@/services/listingApi";
+import type { ListingSortKey } from "@/utils/listingFilters";
+import { filterAndSortListings } from "@/utils/listingFilters";
+import { clearRecentSearches, readRecentSearches, rememberRecentSearch } from "@/utils/recentSearches";
+import type { ListingType, RentalListing } from "@/types/rental";
 
-const recentSearches = ["Apartment in Kathmandu", "Studio Room", "Luxury Flat", "Family House"];
 const popularSearches = ["Rooms under 15000", "Parking Available", "Near Bus Park", "Furnished Apartment"];
+const sortOptions: { label: string; value: ListingSortKey }[] = [
+  { label: "Relevant", value: "relevance" },
+  { label: "Newest", value: "newest" },
+  { label: "Price Low", value: "price_asc" },
+  { label: "Price High", value: "price_desc" },
+  { label: "Top Rated", value: "rating_desc" },
+];
+
+const typeOptions: { label: string; value: ListingType | "all" }[] = [
+  { label: "All", value: "all" },
+  { label: "Homes", value: "physical" },
+  { label: "Services", value: "service" },
+  { label: "Hybrid", value: "hybrid" },
+];
+const ratingOptions = [
+  { label: "Any Rating", value: null },
+  { label: "4.5+", value: 4.5 },
+  { label: "4.0+", value: 4 },
+  { label: "3.5+", value: 3.5 },
+];
 
 export default function SearchScreen() {
   const router = useRouter();
-  const { rentalListings } = useListings();
+  const { hasMoreListings, listings, loadingMore, loadMoreListings, publicError, refreshListings, refreshing } = useListings();
   const { categories } = useCategories();
   const [searchText, setSearchText] = useState("");
   const [isFocused, setIsFocused] = useState(false);
-  const listings = rentalListings;
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
+  const [selectedType, setSelectedType] = useState<ListingType | "all">("all");
+  const [sortBy, setSortBy] = useState<ListingSortKey>("relevance");
+  const [cityFilter, setCityFilter] = useState("");
+  const [minPrice, setMinPrice] = useState("");
+  const [maxPrice, setMaxPrice] = useState("");
+  const [minRating, setMinRating] = useState<number | null>(null);
+  const parsedMinPrice = Number(minPrice);
+  const parsedMaxPrice = Number(maxPrice);
+  const filteredListings = useMemo(
+    () =>
+      filterAndSortListings(listings, {
+        query: searchText,
+        categoryId: selectedCategoryId,
+        listingType: selectedType,
+        city: cityFilter,
+        minPrice: Number.isFinite(parsedMinPrice) && parsedMinPrice > 0 ? parsedMinPrice : null,
+        maxPrice: Number.isFinite(parsedMaxPrice) && parsedMaxPrice > 0 ? parsedMaxPrice : null,
+        minRating,
+        sortBy,
+      }).map(mapApiListingToRentalListing),
+    [cityFilter, listings, maxPrice, minPrice, minRating, parsedMaxPrice, parsedMinPrice, searchText, selectedCategoryId, selectedType, sortBy],
+  );
+  const hasFilters = Boolean(
+    searchText || selectedCategoryId || selectedType !== "all" || cityFilter || minPrice || maxPrice || minRating || sortBy !== "relevance",
+  );
+  const featuredListings = hasFilters ? filteredListings : listings.map(mapApiListingToRentalListing);
+
+  useEffect(() => {
+    readRecentSearches().then(setRecentSearches);
+  }, []);
+
+  async function applySearch(term: string) {
+    setSearchText(term);
+    const underPriceMatch = term.match(/under\s+(\d+)/i);
+
+    if (underPriceMatch?.[1]) {
+      setMaxPrice(underPriceMatch[1]);
+    }
+
+    setRecentSearches(await rememberRecentSearch(term));
+  }
+
+  async function clearSearchHistory() {
+    await clearRecentSearches();
+    setRecentSearches([]);
+  }
 
   const handleCategoryPress = (categoryId: number, categoryName: string) => {
     router.push(`/service-list?categoryId=${categoryId}&categoryName=${categoryName}`);
@@ -54,16 +124,35 @@ export default function SearchScreen() {
         searchValue={searchText}
         onSearchChange={setSearchText}
         onSearchFocus={() => setIsFocused(true)}
-        onSearchBlur={() => setIsFocused(false)}
+        onSearchBlur={() => {
+          setIsFocused(false);
+          if (searchText.trim()) {
+            rememberRecentSearch(searchText).then(setRecentSearches);
+          }
+        }}
         searchFocused={isFocused}
       />
 
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.scrollView}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} tintColor={Colors.light.primary} onRefresh={() => refreshListings()} />}
+      >
+        {publicError ? (
+          <View style={styles.errorBox}>
+            <Ionicons name="alert-circle-outline" size={18} color={Colors.light.danger} />
+            <Text style={styles.errorText}>{publicError}</Text>
+            <TouchableOpacity activeOpacity={0.8} style={styles.retryButton} onPress={() => refreshListings()}>
+              <Text style={styles.retryText}>Retry</Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
+
         <View style={styles.section}>
-          <SectionHeader title="Recent Searches" actionLabel="Clear All" />
+          <SectionHeader title="Recent Searches" actionLabel={recentSearches.length ? "Clear All" : ""} onActionPress={clearSearchHistory} />
           <View style={styles.wrapList}>
-            {recentSearches.map((item) => (
-              <TouchableOpacity key={item} style={styles.recentItem} onPress={() => setSearchText(item)}>
+            {(recentSearches.length ? recentSearches : ["Apartment in Kathmandu", "Studio Room", "Luxury Flat"]).map((item) => (
+              <TouchableOpacity key={item} style={styles.recentItem} onPress={() => applySearch(item)}>
                 <Ionicons name="time-outline" size={18} color={Colors.light.muted} />
                 <Text style={styles.recentText}>{item}</Text>
               </TouchableOpacity>
@@ -75,11 +164,89 @@ export default function SearchScreen() {
           <SectionHeader title="Popular Searches" actionLabel="" />
           <View style={styles.wrapList}>
             {popularSearches.map((item) => (
-              <TouchableOpacity key={item} style={styles.popularItem} onPress={() => setSearchText(item)}>
+              <TouchableOpacity key={item} style={styles.popularItem} onPress={() => applySearch(item)}>
                 <Ionicons name="trending-up" size={16} color={Colors.light.primary} />
                 <Text style={styles.popularText}>{item}</Text>
               </TouchableOpacity>
             ))}
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <SectionHeader title="Filters" actionLabel={selectedCategoryId || selectedType !== "all" || sortBy !== "relevance" || cityFilter || minPrice || maxPrice || minRating ? "Reset" : ""} onActionPress={() => {
+            setSelectedCategoryId(null);
+            setSelectedType("all");
+            setSortBy("relevance");
+            setCityFilter("");
+            setMinPrice("");
+            setMaxPrice("");
+            setMinRating(null);
+          }} />
+
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
+            {typeOptions.map((option) => {
+              const selected = selectedType === option.value;
+
+              return (
+                <TouchableOpacity key={option.value} style={[styles.filterChip, selected && styles.selectedFilterChip]} onPress={() => setSelectedType(option.value)}>
+                  <Text style={[styles.filterChipText, selected && styles.selectedFilterText]}>{option.label}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
+            <TouchableOpacity style={[styles.filterChip, selectedCategoryId === null && styles.selectedFilterChip]} onPress={() => setSelectedCategoryId(null)}>
+              <Text style={[styles.filterChipText, selectedCategoryId === null && styles.selectedFilterText]}>All Categories</Text>
+            </TouchableOpacity>
+            {categories.map((category) => {
+              const selected = selectedCategoryId === category.id;
+
+              return (
+                <TouchableOpacity key={category.id} style={[styles.filterChip, selected && styles.selectedFilterChip]} onPress={() => setSelectedCategoryId(category.id)}>
+                  <Text style={[styles.filterChipText, selected && styles.selectedFilterText]}>{category.name}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
+            {sortOptions.map((option) => {
+              const selected = sortBy === option.value;
+
+              return (
+                <TouchableOpacity key={option.value} style={[styles.filterChip, selected && styles.selectedFilterChip]} onPress={() => setSortBy(option.value)}>
+                  <Text style={[styles.filterChipText, selected && styles.selectedFilterText]}>{option.label}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
+            {ratingOptions.map((option) => {
+              const selected = minRating === option.value;
+
+              return (
+                <TouchableOpacity key={option.label} style={[styles.filterChip, selected && styles.selectedFilterChip]} onPress={() => setMinRating(option.value)}>
+                  <Text style={[styles.filterChipText, selected && styles.selectedFilterText]}>{option.label}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+
+          <View style={styles.filterInputs}>
+            <View style={styles.filterInputShell}>
+              <Ionicons name="location-outline" size={16} color={Colors.light.muted} />
+              <TextInput placeholder="City or area" placeholderTextColor="#98A1B3" value={cityFilter} onChangeText={setCityFilter} style={styles.filterInput} />
+            </View>
+            <View style={styles.priceInputRow}>
+              <View style={styles.priceInputShell}>
+                <TextInput keyboardType="numeric" placeholder="Min price" placeholderTextColor="#98A1B3" value={minPrice} onChangeText={setMinPrice} style={styles.filterInput} />
+              </View>
+              <View style={styles.priceInputShell}>
+                <TextInput keyboardType="numeric" placeholder="Max price" placeholderTextColor="#98A1B3" value={maxPrice} onChangeText={setMaxPrice} style={styles.filterInput} />
+              </View>
+            </View>
           </View>
         </View>
 
@@ -100,18 +267,24 @@ export default function SearchScreen() {
         <View style={styles.section}>
           <SectionHeader title="Featured Listings" />
           <FlatList
-            data={listings}
+            data={featuredListings}
             horizontal
             showsHorizontalScrollIndicator={false}
             keyExtractor={(item) => item.id.toString()}
             contentContainerStyle={styles.featuredListContent}
             renderItem={renderFeatured}
+            ListEmptyComponent={
+              <View style={styles.inlineEmptyState}>
+                <Text style={styles.emptyTitle}>No matches</Text>
+                <Text style={styles.emptyText}>Try a different search or reset filters.</Text>
+              </View>
+            }
           />
         </View>
 
         <View style={[styles.section, styles.lastSection]}>
-          <SectionHeader title="Nearby Recommendations" />
-          {listings.slice(0, 3).map((item) => (
+          <SectionHeader title={hasFilters ? "Matching Listings" : "Nearby Recommendations"} />
+          {featuredListings.slice(0, 5).map((item) => (
             <TouchableOpacity key={item.id} style={styles.nearbyCard} onPress={() => handleServicePress(item.id)}>
               <Image source={{ uri: item.image }} style={styles.nearbyImage} />
               <View style={styles.nearbyInfo}>
@@ -127,6 +300,18 @@ export default function SearchScreen() {
               </TouchableOpacity>
             </TouchableOpacity>
           ))}
+          {!featuredListings.length ? (
+            <View style={styles.emptyState}>
+              <Ionicons name="search-outline" size={30} color={Colors.light.primary} />
+              <Text style={styles.emptyTitle}>No listings found</Text>
+              <Text style={styles.emptyText}>Try removing filters or searching another area.</Text>
+            </View>
+          ) : null}
+          {hasMoreListings ? (
+            <TouchableOpacity activeOpacity={0.85} style={styles.loadMoreButton} onPress={loadMoreListings}>
+              <Text style={styles.loadMoreText}>{loadingMore ? "Loading..." : "Load more listings"}</Text>
+            </TouchableOpacity>
+          ) : null}
         </View>
       </ScrollView>
     </Screen>
@@ -140,6 +325,34 @@ const styles = StyleSheet.create({
   section: {
     marginTop: Spacing.xxl,
     paddingHorizontal: Spacing.xl,
+  },
+  errorBox: {
+    alignItems: "center",
+    backgroundColor: "#FEF2F2",
+    borderColor: "#FAD4D4",
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: Spacing.sm,
+    marginHorizontal: Spacing.xl,
+    marginTop: Spacing.lg,
+    padding: Spacing.md,
+  },
+  errorText: {
+    color: Colors.light.danger,
+    flex: 1,
+    ...Typography.label,
+  },
+  retryButton: {
+    backgroundColor: Colors.light.surface,
+    borderRadius: Radius.sm,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+  },
+  retryText: {
+    color: Colors.light.primary,
+    ...Typography.label,
+    fontWeight: "900",
   },
   lastSection: {
     marginBottom: 100,
@@ -180,6 +393,67 @@ const styles = StyleSheet.create({
     color: Colors.light.primary,
     ...Typography.body,
     fontWeight: "800",
+  },
+  filterRow: {
+    gap: Spacing.sm,
+    paddingRight: Spacing.xl,
+    paddingBottom: Spacing.sm,
+  },
+  filterChip: {
+    backgroundColor: Colors.light.surface,
+    borderColor: Colors.light.border,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+  },
+  selectedFilterChip: {
+    backgroundColor: Colors.light.primary,
+    borderColor: Colors.light.primary,
+  },
+  filterChipText: {
+    color: Colors.light.primary,
+    ...Typography.label,
+    fontWeight: "900",
+  },
+  selectedFilterText: {
+    color: "white",
+  },
+  filterInputs: {
+    gap: Spacing.sm,
+    marginTop: Spacing.xs,
+  },
+  filterInputShell: {
+    alignItems: "center",
+    backgroundColor: Colors.light.surface,
+    borderColor: Colors.light.border,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: Spacing.sm,
+    minHeight: 46,
+    paddingHorizontal: Spacing.md,
+  },
+  filterInput: {
+    color: Colors.light.text,
+    flex: 1,
+    paddingVertical: 0,
+    ...Typography.body,
+    fontWeight: "700",
+  },
+  priceInputRow: {
+    flexDirection: "row",
+    gap: Spacing.sm,
+  },
+  priceInputShell: {
+    backgroundColor: Colors.light.surface,
+    borderColor: Colors.light.border,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    flex: 1,
+    justifyContent: "center",
+    minHeight: 46,
+    paddingHorizontal: Spacing.md,
   },
   categoriesContainer: {
     paddingRight: Spacing.xl,
@@ -288,5 +562,47 @@ const styles = StyleSheet.create({
   heartBtn: {
     justifyContent: "center",
     paddingHorizontal: 15,
+  },
+  inlineEmptyState: {
+    alignItems: "center",
+    backgroundColor: Colors.light.surface,
+    borderColor: Colors.light.border,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    padding: Spacing.xl,
+    width: 240,
+  },
+  emptyState: {
+    alignItems: "center",
+    backgroundColor: Colors.light.surface,
+    borderColor: Colors.light.border,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    padding: Spacing.xl,
+  },
+  emptyTitle: {
+    color: Colors.light.text,
+    marginTop: Spacing.sm,
+    ...Typography.cardTitle,
+    fontWeight: "900",
+  },
+  emptyText: {
+    color: Colors.light.muted,
+    marginTop: Spacing.xs,
+    textAlign: "center",
+    ...Typography.label,
+  },
+  loadMoreButton: {
+    alignItems: "center",
+    backgroundColor: Colors.light.surface,
+    borderColor: Colors.light.border,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    paddingVertical: Spacing.md,
+  },
+  loadMoreText: {
+    color: Colors.light.primary,
+    ...Typography.label,
+    fontWeight: "900",
   },
 });

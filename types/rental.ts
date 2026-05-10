@@ -81,20 +81,36 @@ export type ListingCategory = {
 
 export type ListingMedia = {
   id?: number;
+  rentable_unit_id?: number | null;
   media_type?: "image" | "video" | "file";
+  disk?: string | null;
+  path?: string | null;
   url?: string | null;
   alt_text?: string | null;
+  mime_type?: string | null;
+  size_bytes?: number | string | null;
+  sort_order?: number | null;
   is_primary?: boolean;
+  metadata?: Record<string, unknown> | null;
 };
 
 export type ListingLocation = {
   id?: number;
+  location_type?: string | null;
+  label?: string | null;
   address?: string | null;
   city?: string | null;
+  state?: string | null;
   country?: string | null;
+  postal_code?: string | null;
   latitude?: number | string | null;
   longitude?: number | string | null;
   radius_km?: number | string | null;
+  delivery_fee?: number | string | null;
+  currency?: string | null;
+  is_primary?: boolean;
+  sort_order?: number | null;
+  metadata?: Record<string, unknown> | null;
 };
 
 export type ListingUnit = {
@@ -106,6 +122,8 @@ export type ListingUnit = {
   status?: "active" | "maintenance" | "paused" | "archived";
   quantity?: number;
   capacity?: number;
+  sort_order?: number | null;
+  metadata?: Record<string, unknown> | null;
 };
 
 export type ListingPricingRule = {
@@ -130,6 +148,8 @@ export type ApiListing = {
   booking_capacity?: number | null;
   rating_average?: number | string | null;
   rating_count?: number | null;
+  approved_at?: string | null;
+  published_at?: string | null;
   metadata?: Record<string, unknown> | null;
   primary_media?: ListingMedia | null;
   primary_location?: ListingLocation | null;
@@ -137,6 +157,7 @@ export type ApiListing = {
   media?: ListingMedia[];
   locations?: ListingLocation[];
   pricing_rules?: ListingPricingRule[];
+  availability_rules?: Array<Record<string, unknown>>;
   attributes?: Array<{
     id?: number;
     category_attribute_id: number;
@@ -162,6 +183,7 @@ export type ListingFormValues = {
   price: string;
   billing_unit: BillingUnit;
   image_url: string;
+  media_urls: string[];
   city: string;
   address: string;
   features: string;
@@ -172,4 +194,56 @@ export type CategoryMeta = {
   icon: IconName;
   count: string;
   accent: string;
+};
+
+export type BookingStatus = "pending" | "confirmed" | "active" | "completed" | "cancelled" | (string & {});
+
+export type BookingItem = {
+  id: number;
+  booking_id?: number;
+  rentable_unit_id?: number | null;
+  unit?: ListingUnit | null;
+  quantity?: number | string | null;
+  unit_price?: number | string | null;
+  total_amount?: number | string | null;
+  currency?: string | null;
+  metadata?: Record<string, unknown> | null;
+};
+
+export type ApiBooking = {
+  id: number;
+  booking_number: string;
+  status: BookingStatus;
+  customer_id: number;
+  owner_id: number;
+  listing_id: number;
+  listing?: ApiListing | null;
+  start_at?: string | null;
+  end_at?: string | null;
+  quantity?: number | string | null;
+  guest_count?: number | string | null;
+  subtotal_amount?: number | string | null;
+  deposit_amount?: number | string | null;
+  penalty_amount?: number | string | null;
+  total_amount?: number | string | null;
+  currency?: string | null;
+  pricing_snapshot?: Record<string, unknown> | null;
+  rules_snapshot?: Record<string, unknown> | null;
+  items?: BookingItem[];
+  notes?: string | null;
+  cancellation_reason?: string | null;
+  confirmed_at?: string | null;
+  cancelled_at?: string | null;
+  metadata?: Record<string, unknown> | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+};
+
+export type BookingStatusCounts = {
+  total: number;
+  pending: number;
+  confirmed: number;
+  active: number;
+  completed: number;
+  cancelled: number;
 };

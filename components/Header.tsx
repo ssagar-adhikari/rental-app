@@ -2,8 +2,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SearchBar } from "@/components/SearchBar";
-import { Colors, Radius, Spacing, Typography } from "@/constants/theme";
+import { Colors, Radius, Spacing, TouchTarget, Typography } from "@/constants/theme";
 import { useUserLocation } from "@/context/LocationContext";
+import { lightImpactHaptic, selectionHaptic } from "@/utils/haptics";
 
 export default function Header() {
   const { location, loading } = useUserLocation();
@@ -14,24 +15,29 @@ export default function Header() {
       <View style={styles.top}>
         <View>
           <TouchableOpacity
+            accessibilityLabel={`Change location. Current location: ${locationLabel}`}
+            accessibilityRole="button"
             activeOpacity={0.78}
             style={styles.locationButton}
-            onPress={() => router.push("/location-picker")}
+            onPress={() => {
+              lightImpactHaptic();
+              router.push("/location-picker");
+            }}
           >
-            <Ionicons name="location-outline" size={15} color="rgba(255,255,255,0.78)" />
+            <Ionicons name="location-outline" size={15} color={Colors.light.onPrimarySubtle} />
             <Text style={styles.location} numberOfLines={1}>
               {locationLabel}
             </Text>
-            <Ionicons name="chevron-down" size={14} color="rgba(255,255,255,0.78)" />
+            <Ionicons name="chevron-down" size={14} color={Colors.light.onPrimarySubtle} />
           </TouchableOpacity>
           <Text style={styles.title}>Find your next place</Text>
         </View>
 
         <View style={styles.iconRow}>
-          <TouchableOpacity activeOpacity={0.8} style={styles.iconBtn}>
+          <TouchableOpacity accessibilityLabel="Saved listings" accessibilityRole="button" activeOpacity={0.8} style={styles.iconBtn} onPress={selectionHaptic}>
             <Ionicons name="heart-outline" size={21} color="white" />
           </TouchableOpacity>
-          <TouchableOpacity activeOpacity={0.8} style={styles.iconBtn}>
+          <TouchableOpacity accessibilityLabel="Notifications" accessibilityRole="button" activeOpacity={0.8} style={styles.iconBtn} onPress={selectionHaptic}>
             <Ionicons name="notifications-outline" size={21} color="white" />
           </TouchableOpacity>
         </View>
@@ -77,15 +83,15 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   iconBtn: {
-    width: 40,
-    height: 40,
+    width: TouchTarget.min,
+    height: TouchTarget.min,
     borderRadius: Radius.pill,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.14)",
+    backgroundColor: Colors.light.onPrimarySurface,
   },
   location: {
-    color: "rgba(255,255,255,0.72)",
+    color: Colors.light.onPrimaryMuted,
     maxWidth: 170,
     ...Typography.label,
   },
@@ -96,13 +102,14 @@ const styles = StyleSheet.create({
     gap: 5,
     marginBottom: Spacing.xs,
     maxWidth: 220,
+    minHeight: TouchTarget.min,
   },
   title: {
     color: "white",
     ...Typography.screenTitle,
   },
   subtitle: {
-    color: "rgba(255,255,255,0.82)",
+    color: Colors.light.onPrimarySubtle,
     ...Typography.body,
   },
   statsRow: {
@@ -113,7 +120,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 7,
-    backgroundColor: "rgba(255,255,255,0.14)",
+    backgroundColor: Colors.light.onPrimarySurface,
     borderRadius: Radius.md,
     paddingHorizontal: Spacing.md,
     paddingVertical: 9,

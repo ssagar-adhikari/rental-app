@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -14,6 +15,7 @@ import {
   View,
 } from "react-native";
 import { AppHeader } from "@/components/AppHeader";
+import { MediaUploader } from "@/components/MediaUploader";
 import { Screen } from "@/components/Screen";
 import { Colors, Radius, Shadows, Spacing, Typography } from "@/constants/theme";
 import { useAuth } from "@/context/AuthContext";
@@ -21,7 +23,8 @@ import { useCategories } from "@/context/CategoriesContext";
 import { useListings } from "@/context/ListingsContext";
 import { billingUnits } from "@/data/listingOptions";
 import { listingToFormValues } from "@/services/listingApi";
-import type { ApiCategoryAttribute, BillingUnit, ListingFormValues, ListingType, VendorListingCategory } from "@/types/rental";
+import type { ListingMediaPayload } from "@/services/listingMediaApi";
+import type { ApiCategoryAttribute, BillingUnit, ListingFormValues, ListingMedia, ListingType, VendorListingCategory } from "@/types/rental";
 
 type FieldProps = {
   icon: keyof typeof Ionicons.glyphMap;
@@ -38,6 +41,8 @@ const typeOptions: { label: string; value: ListingType; icon: keyof typeof Ionic
   { label: "Service", value: "service", icon: "briefcase-outline" },
   { label: "Hybrid", value: "hybrid", icon: "swap-horizontal-outline" },
 ];
+const maxMediaItems = 8;
+const supportedImageExtensions = new Set(["jpg", "jpeg", "png", "webp", "gif"]);
 
 function Field({ icon, label, value, onChangeText, placeholder, keyboardType = "default", multiline = false }: FieldProps) {
   return (
@@ -76,9 +81,69 @@ function attributePlaceholder(attribute: ApiCategoryAttribute) {
   return `Enter ${attribute.attribute.toLowerCase()}`;
 }
 
+function mediaUrlsFromValues(values: ListingFormValues) {
+  if (values.media_urls.length) {
+    return values.media_urls;
+  }
+
+  return values.image_url.trim() ? [values.image_url.trim()] : [];
+}
+
+function validateImageUrl(url: string) {
+  const trimmedUrl = url.trim();
+
+  if (!trimmedUrl) {
+    return "Add an image URL first.";
+  }
+
+  if (trimmedUrl.length > 2048) {
+    return "Image URL is too long.";
+  }
+
+  let parsedUrl: URL;
+
+  try {
+    parsedUrl = new URL(trimmedUrl);
+  } catch {
+    return "Image URL must be a valid URL.";
+  }
+
+  if (!["http:", "https:"].includes(parsedUrl.protocol)) {
+    return "Image URL must start with http:// or https://.";
+  }
+
+  const extension = parsedUrl.pathname.match(/\.([a-z0-9]+)$/i)?.[1]?.toLowerCase();
+
+  if (extension && !supportedImageExtensions.has(extension)) {
+    return "Image URL must be JPG, PNG, WEBP, or GIF.";
+  }
+
+  return null;
+}
+
+function toMediaPayload(media: ListingMedia | undefined, listingId: number): ListingMediaPayload | null {
+  if (!media || typeof media.id !== "number") {
+    return null;
+  }
+
+  return {
+    id: media.id,
+    listing_id: listingId,
+    rentable_unit_id: media.rentable_unit_id ?? null,
+    media_type: media.media_type ?? "image",
+    url: media.url ?? null,
+    path: media.path ?? null,
+    alt_text: media.alt_text ?? null,
+    mime_type: media.mime_type ?? null,
+    size_bytes: typeof media.size_bytes === "number" ? media.size_bytes : null,
+    sort_order: media.sort_order ?? 0,
+    is_primary: media.is_primary ?? false,
+  };
+}
+
 export default function VendorListingFormScreen() {
   const { id } = useLocalSearchParams();
-  const { loading, user } = useAuth();
+  const { loading, token, user } = useAuth();
   const { loading: categoriesLoading, vendorCategories } = useCategories();
   const { createListing, loadListing, updateListing, vendorListings } = useListings();
   const editId = Number(Array.isArray(id) ? id[0] : id);
@@ -88,6 +153,8 @@ export default function VendorListingFormScreen() {
   const [loadingListing, setLoadingListing] = useState(isEditing);
   const [saving, setSaving] = useState<"draft" | "pending" | "update" | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [mediaUrlInput, setMediaUrlInput] = useState("");
+  const [remoteMedia, setRemoteMedia] = useState<ListingMediaPayload[]>([]);
   const selectedCategory = useMemo(
     () => vendorCategories.find((category) => category.id === values.category_id),
     [values.category_id, vendorCategories],
@@ -125,6 +192,10 @@ export default function VendorListingFormScreen() {
 
         if (mounted) {
           setValues(listingToFormValues(listing));
+          const items = (listing.media ?? [])
+            .map((media) => toMediaPayload(media, listing.id))
+            .filter((media): media is ListingMediaPayload => media !== null);
+          setRemoteMedia(items);
         }
       } catch (exception) {
         if (mounted) {
@@ -185,6 +256,60 @@ export default function VendorListingFormScreen() {
     }));
   }
 
+  function setMediaUrls(nextUrls: string[]) {
+    const uniqueUrls = Array.from(new Set(nextUrls.map((url) => url.trim()).filter(Boolean))).slice(0, maxMediaItems);
+
+    setValues((current) => ({
+      ...current,
+      image_url: uniqueUrls[0] ?? "",
+      media_urls: uniqueUrls,
+    }));
+  }
+
+  function addMediaUrl() {
+    const trimmedUrl = mediaUrlInput.trim();
+    const validationError = validateImageUrl(trimmedUrl);
+
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
+    const currentUrls = mediaUrlsFromValues(values);
+
+    if (currentUrls.includes(trimmedUrl)) {
+      setError("This image is already added.");
+      return;
+    }
+
+    if (currentUrls.length >= maxMediaItems) {
+      setError(`Add up to ${maxMediaItems} images per listing.`);
+      return;
+    }
+
+    setMediaUrls([...currentUrls, trimmedUrl]);
+    setMediaUrlInput("");
+    setError(null);
+  }
+
+  function removeMediaUrl(index: number) {
+    setMediaUrls(mediaUrlsFromValues(values).filter((_, itemIndex) => itemIndex !== index));
+  }
+
+  function moveMediaUrl(index: number, direction: -1 | 1) {
+    const nextUrls = [...mediaUrlsFromValues(values)];
+    const nextIndex = index + direction;
+
+    if (nextIndex < 0 || nextIndex >= nextUrls.length) {
+      return;
+    }
+
+    const currentItem = nextUrls[index];
+    nextUrls[index] = nextUrls[nextIndex];
+    nextUrls[nextIndex] = currentItem;
+    setMediaUrls(nextUrls);
+  }
+
   function validate() {
     if (!vendorCategories.length) {
       return "No child categories are available. Add active child categories from the backend first.";
@@ -206,8 +331,10 @@ export default function VendorListingFormScreen() {
       return "Add a valid price.";
     }
 
-    if (values.image_url.trim() && !/^https?:\/\//i.test(values.image_url.trim())) {
-      return "Image URL must start with http:// or https://.";
+    const invalidMediaUrl = mediaUrlsFromValues(values).find((url) => validateImageUrl(url));
+
+    if (invalidMediaUrl) {
+      return validateImageUrl(invalidMediaUrl);
     }
 
     const missingAttribute = selectedAttributes.find(
@@ -265,7 +392,7 @@ export default function VendorListingFormScreen() {
         ) : (
           <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
             <View style={styles.toolbar}>
-              <TouchableOpacity activeOpacity={0.88} style={styles.backButton} onPress={() => router.back()}>
+              <TouchableOpacity accessibilityLabel="Go back" accessibilityRole="button" activeOpacity={0.88} style={styles.backButton} onPress={() => router.back()}>
                 <Ionicons name="arrow-back" size={18} color={Colors.light.primary} />
               </TouchableOpacity>
               <Text style={styles.toolbarTitle}>{isEditing ? "Listing details" : "New vendor listing"}</Text>
@@ -336,15 +463,85 @@ export default function VendorListingFormScreen() {
                   placeholder="Describe the space, service, rules, and highlights"
                   value={values.description}
                 />
-                <Field
-                  icon="image-outline"
-                  keyboardType="url"
-                  label="Image URL"
-                  onChangeText={(value) => updateField("image_url", value)}
-                  placeholder="https://example.com/photo.jpg"
-                  value={values.image_url}
-                />
               </View>
+            </View>
+
+            <View style={styles.formCard}>
+              <Text style={styles.sectionTitle}>Media</Text>
+
+              {isEditing && token ? (
+                <View style={styles.fieldStack}>
+                  <MediaUploader
+                    listingId={editId}
+                    onChange={setRemoteMedia}
+                    remoteMedia={remoteMedia}
+                    token={token}
+                  />
+                </View>
+              ) : (
+                <View style={styles.fieldStack}>
+                  {!isEditing ? (
+                    <Text style={styles.helperText}>
+                      Save the listing as a draft to upload photos from your device. You can add image URLs below in the meantime.
+                    </Text>
+                  ) : null}
+
+                  <View style={styles.fieldGroup}>
+                    <Text style={styles.fieldLabel}>Image URL</Text>
+                    <View style={styles.mediaInputRow}>
+                      <View style={[styles.inputShell, styles.mediaInputShell]}>
+                        <Ionicons name="image-outline" size={19} color={Colors.light.muted} />
+                        <TextInput
+                          keyboardType="url"
+                          onChangeText={setMediaUrlInput}
+                          onSubmitEditing={addMediaUrl}
+                          placeholder="https://example.com/photo.jpg"
+                          placeholderTextColor="#98A1B3"
+                          style={styles.input}
+                          value={mediaUrlInput}
+                        />
+                      </View>
+                      <TouchableOpacity activeOpacity={0.86} style={styles.addMediaButton} onPress={addMediaUrl}>
+                        <Ionicons name="add" size={22} color="white" />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+
+                  <View style={styles.mediaGrid}>
+                    {mediaUrlsFromValues(values).map((url, index) => (
+                      <View key={`${url}-${index}`} style={styles.mediaItem}>
+                        <Image source={{ uri: url }} style={styles.mediaPreview} />
+                        {index === 0 ? (
+                          <View style={styles.primaryBadge}>
+                            <Text style={styles.primaryBadgeText}>Primary</Text>
+                          </View>
+                        ) : null}
+                        <View style={styles.mediaActions}>
+                          <TouchableOpacity
+                            activeOpacity={0.86}
+                            disabled={index === 0}
+                            style={[styles.mediaIconButton, index === 0 && styles.disabledIconButton]}
+                            onPress={() => moveMediaUrl(index, -1)}
+                          >
+                            <Ionicons name="arrow-back" size={16} color={Colors.light.primary} />
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            activeOpacity={0.86}
+                            disabled={index === mediaUrlsFromValues(values).length - 1}
+                            style={[styles.mediaIconButton, index === mediaUrlsFromValues(values).length - 1 && styles.disabledIconButton]}
+                            onPress={() => moveMediaUrl(index, 1)}
+                          >
+                            <Ionicons name="arrow-forward" size={16} color={Colors.light.primary} />
+                          </TouchableOpacity>
+                          <TouchableOpacity activeOpacity={0.86} style={styles.mediaDeleteButton} onPress={() => removeMediaUrl(index)}>
+                            <Ionicons name="trash-outline" size={16} color={Colors.light.danger} />
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              )}
             </View>
 
             {selectedAttributes.length ? (
@@ -659,6 +856,85 @@ const styles = StyleSheet.create({
   fieldStack: {
     gap: Spacing.lg,
     marginTop: Spacing.lg,
+  },
+  helperText: {
+    color: Colors.light.muted,
+    ...Typography.body,
+  },
+  mediaInputRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: Spacing.sm,
+  },
+  mediaInputShell: {
+    flex: 1,
+  },
+  addMediaButton: {
+    alignItems: "center",
+    backgroundColor: Colors.light.primary,
+    borderRadius: Radius.md,
+    height: 52,
+    justifyContent: "center",
+    width: 52,
+  },
+  mediaGrid: {
+    gap: Spacing.md,
+  },
+  mediaItem: {
+    backgroundColor: Colors.light.surfaceMuted,
+    borderColor: "#DDE4FF",
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    overflow: "hidden",
+  },
+  mediaPreview: {
+    backgroundColor: Colors.light.surfaceMuted,
+    height: 170,
+    width: "100%",
+  },
+  primaryBadge: {
+    backgroundColor: Colors.light.primary,
+    borderRadius: Radius.pill,
+    left: Spacing.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    position: "absolute",
+    top: Spacing.md,
+  },
+  primaryBadgeText: {
+    color: "white",
+    ...Typography.label,
+    fontWeight: "900",
+  },
+  mediaActions: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: Spacing.sm,
+    justifyContent: "flex-end",
+    padding: Spacing.sm,
+  },
+  mediaIconButton: {
+    alignItems: "center",
+    backgroundColor: Colors.light.surface,
+    borderColor: Colors.light.border,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    height: 36,
+    justifyContent: "center",
+    width: 36,
+  },
+  mediaDeleteButton: {
+    alignItems: "center",
+    backgroundColor: "#FEF2F2",
+    borderColor: "#FAD4D4",
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    height: 36,
+    justifyContent: "center",
+    width: 36,
+  },
+  disabledIconButton: {
+    opacity: 0.35,
   },
   attributeStack: {
     gap: Spacing.md,

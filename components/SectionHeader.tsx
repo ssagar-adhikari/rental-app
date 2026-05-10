@@ -6,9 +6,10 @@ type SectionHeaderProps = {
   eyebrow?: string;
   title: string;
   actionLabel?: string;
+  onActionPress?: () => void;
 };
 
-export function SectionHeader({ eyebrow, title, actionLabel = "See all" }: SectionHeaderProps) {
+export function SectionHeader({ eyebrow, title, actionLabel = "See all", onActionPress }: SectionHeaderProps) {
   return (
     <View style={styles.container}>
       <View>
@@ -16,7 +17,7 @@ export function SectionHeader({ eyebrow, title, actionLabel = "See all" }: Secti
         <Text style={styles.title}>{title}</Text>
       </View>
       {actionLabel ? (
-        <TouchableOpacity activeOpacity={0.8} style={styles.action}>
+        <TouchableOpacity activeOpacity={0.8} style={styles.action} onPress={onActionPress}>
           <Text style={styles.actionText}>{actionLabel}</Text>
           <Ionicons name="chevron-forward" size={14} color={Colors.light.primary} />
         </TouchableOpacity>

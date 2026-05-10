@@ -1,4 +1,5 @@
-import { createContext, PropsWithChildren, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, PropsWithChildren, useCallback, useContext, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { categoryApi, childCategories, mapApiCategory, mapVendorCategory } from "@/services/categoryApi";
 import type { ApiCategory, Category, VendorListingCategory } from "@/types/rental";
 
@@ -11,46 +12,44 @@ type CategoriesContextValue = {
   refreshCategories: () => Promise<void>;
 };
 
+export const categoryTreeQueryKey = ["categories", "tree"] as const;
+
 const CategoriesContext = createContext<CategoriesContextValue | null>(null);
 
 export function CategoriesProvider({ children }: PropsWithChildren) {
-  const [categoryTree, setCategoryTree] = useState<ApiCategory[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const query = useQuery({
+    queryKey: categoryTreeQueryKey,
+    queryFn: () => categoryApi.tree(),
+  });
 
-  const refreshCategories = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const response = await categoryApi.tree();
-      setCategoryTree(response);
-    } catch (exception) {
-      setError(exception instanceof Error ? exception.message : "Unable to load categories.");
-      setCategoryTree([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    refreshCategories();
-  }, [refreshCategories]);
+  const categoryTree = query.data ?? [];
 
   const childCategoryList = useMemo(() => childCategories(categoryTree), [categoryTree]);
   const categories = useMemo(() => childCategoryList.map(mapApiCategory), [childCategoryList]);
   const vendorCategories = useMemo(() => childCategoryList.map(mapVendorCategory), [childCategoryList]);
+
+  const refreshCategories = useCallback(async () => {
+    await query.refetch();
+  }, [query]);
 
   const value = useMemo<CategoriesContextValue>(
     () => ({
       categoryTree,
       categories,
       vendorCategories,
-      loading,
-      error,
+      loading: query.isPending || query.isFetching,
+      error: query.error instanceof Error ? query.error.message : null,
       refreshCategories,
     }),
-    [categories, categoryTree, error, loading, refreshCategories, vendorCategories],
+    [
+      categories,
+      categoryTree,
+      query.error,
+      query.isFetching,
+      query.isPending,
+      refreshCategories,
+      vendorCategories,
+    ],
   );
 
   return <CategoriesContext.Provider value={value}>{children}</CategoriesContext.Provider>;

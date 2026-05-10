@@ -83,14 +83,21 @@ export default function LocationPickerScreen() {
   return (
     <Screen>
       <View style={styles.header}>
-        <TouchableOpacity activeOpacity={0.85} style={styles.backButton} onPress={() => router.back()}>
+        <TouchableOpacity accessibilityLabel="Go back" accessibilityRole="button" activeOpacity={0.85} style={styles.backButton} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={22} color="white" />
         </TouchableOpacity>
         <View style={styles.headerText}>
           <Text style={styles.eyebrow}>Location</Text>
           <Text style={styles.title}>Set your area</Text>
         </View>
-        <TouchableOpacity activeOpacity={0.85} style={styles.currentButton} onPress={useCurrentLocation}>
+        <TouchableOpacity
+          accessibilityLabel="Use current location"
+          accessibilityRole="button"
+          activeOpacity={0.85}
+          disabled={loading}
+          style={[styles.currentButton, loading && styles.disabledButton]}
+          onPress={useCurrentLocation}
+        >
           {loading ? (
             <ActivityIndicator color="white" size="small" />
           ) : (
@@ -129,6 +136,10 @@ export default function LocationPickerScreen() {
           </View>
         </View>
 
+        <Text style={styles.helperText}>
+          Use the current-location button when available, then save to confirm the area used for registration and nearby listings.
+        </Text>
+
         {error ? (
           <View style={styles.errorBox}>
             <Ionicons name="alert-circle-outline" size={18} color={Colors.light.danger} />
@@ -136,9 +147,9 @@ export default function LocationPickerScreen() {
           </View>
         ) : null}
 
-        <TouchableOpacity activeOpacity={0.88} disabled={saving} style={[styles.saveButton, saving && styles.disabledButton]} onPress={saveLocation}>
+        <TouchableOpacity activeOpacity={0.88} disabled={saving || resolvingLabel} style={[styles.saveButton, (saving || resolvingLabel) && styles.disabledButton]} onPress={saveLocation}>
           {saving ? <ActivityIndicator color="white" size="small" /> : <Ionicons name="checkmark-circle-outline" size={21} color="white" />}
-          <Text style={styles.saveText}>{saving ? "Saving..." : "Save Location"}</Text>
+          <Text style={styles.saveText}>{saving ? "Saving..." : resolvingLabel ? "Checking location..." : "Save Location"}</Text>
         </TouchableOpacity>
       </View>
     </Screen>
@@ -237,6 +248,11 @@ const styles = StyleSheet.create({
     color: Colors.light.danger,
     flex: 1,
     ...Typography.label,
+  },
+  helperText: {
+    color: Colors.light.muted,
+    marginTop: Spacing.md,
+    ...Typography.body,
   },
   saveButton: {
     alignItems: "center",

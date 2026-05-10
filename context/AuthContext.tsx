@@ -1,4 +1,5 @@
-import { createContext, PropsWithChildren, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, PropsWithChildren, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { clearApiClientHandlers, configureApiClient } from "@/services/apiClient";
 import {
   authApi,
   clearStoredActiveRole,
@@ -9,7 +10,10 @@ import {
   storeToken,
 } from "@/services/authApi";
 import type { AuthUser, LoginResponse, UserRole } from "@/types/auth";
+import { analytics, AnalyticsEvents } from "@/utils/analytics";
 import { canUseRole, getAvailableAppRoles, type AppRole } from "@/utils/authRoutes";
+import { syncPushTokenWithBackend, unregisterPushToken } from "@/utils/pushNotifications";
+import { setSentryUser } from "@/utils/sentry";
 
 type RegisterInput = {
   name: string;
@@ -33,6 +37,7 @@ type AuthContextValue = {
   selectRole: (role: AppRole) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  resendEmailVerification: () => Promise<void>;
   enableTwoFactor: () => Promise<void>;
   disableTwoFactor: () => Promise<void>;
 };
@@ -44,6 +49,12 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const [token, setToken] = useState<string | null>(null);
   const [activeRole, setActiveRole] = useState<AppRole | null>(null);
   const [loading, setLoading] = useState(true);
+  const tokenRef = useRef<string | null>(null);
+  const pushTokenRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    tokenRef.current = token;
+  }, [token]);
 
   const rememberRoleForUser = useCallback(
     async (nextUser: AuthUser, preferredRole: AppRole | null = activeRole) => {
@@ -68,15 +79,48 @@ export function AuthProvider({ children }: PropsWithChildren) {
       setToken(accessToken);
       setUser(nextUser);
       await rememberRoleForUser(nextUser);
+      analytics.identify(String(nextUser.id), { roles: nextUser.roles?.join(",") });
+      setSentryUser({ id: nextUser.id, roles: nextUser.roles });
+
+      const pushToken = await syncPushTokenWithBackend(accessToken);
+      pushTokenRef.current = pushToken;
     },
     [rememberRoleForUser],
   );
 
   const clearSession = useCallback(async () => {
+    const previousAuthToken = tokenRef.current;
+    const previousPushToken = pushTokenRef.current;
+
+    if (previousAuthToken && previousPushToken) {
+      await unregisterPushToken(previousPushToken, previousAuthToken);
+    }
+
+    pushTokenRef.current = null;
+
     await clearStoredToken();
     setToken(null);
     setUser(null);
+    analytics.reset();
+    setSentryUser(null);
   }, []);
+
+  useEffect(() => {
+    configureApiClient({
+      getToken: () => tokenRef.current,
+      setToken: async (next: string) => {
+        await storeToken(next);
+        setToken(next);
+      },
+      onUnauthorized: async () => {
+        await clearSession();
+      },
+    });
+
+    return () => {
+      clearApiClientHandlers();
+    };
+  }, [clearSession]);
 
   const refreshUser = useCallback(async () => {
     if (!token) {
@@ -88,38 +132,72 @@ export function AuthProvider({ children }: PropsWithChildren) {
     await rememberRoleForUser(nextUser);
   }, [rememberRoleForUser, token]);
 
+  const resendEmailVerification = useCallback(async () => {
+    if (!token) {
+      throw new Error("Please log in before resending verification email.");
+    }
+
+    await authApi.resendEmailVerification(token);
+  }, [token]);
+
   const login = useCallback(
     async (email: string, password: string) => {
-      const response = await authApi.login({ email, password });
+      analytics.track(AnalyticsEvents.AuthLoginAttempt);
 
-      if (!response.requires_two_factor) {
-        await applySession(response.access_token, response.user);
+      try {
+        const response = await authApi.login({ email, password });
+
+        if (response.requires_two_factor) {
+          analytics.track(AnalyticsEvents.AuthTwoFactorChallenge);
+        } else {
+          await applySession(response.access_token, response.user);
+          analytics.track(AnalyticsEvents.AuthLoginSuccess);
+        }
+
+        return response;
+      } catch (error) {
+        analytics.track(AnalyticsEvents.AuthLoginFailure);
+        throw error;
       }
-
-      return response;
     },
     [applySession],
   );
 
   const verifyTwoFactor = useCallback(
     async (email: string, challengeToken: string, code: string) => {
-      const response = await authApi.verifyTwoFactor({
-        email,
-        challenge_token: challengeToken,
-        code,
-      });
+      try {
+        const response = await authApi.verifyTwoFactor({
+          email,
+          challenge_token: challengeToken,
+          code,
+        });
 
-      await applySession(response.access_token, response.user);
-      return response.user;
+        await applySession(response.access_token, response.user);
+        analytics.track(AnalyticsEvents.AuthTwoFactorSuccess);
+        return response.user;
+      } catch (error) {
+        analytics.track(AnalyticsEvents.AuthTwoFactorFailure);
+        throw error;
+      }
     },
     [applySession],
   );
 
   const register = useCallback(
     async (input: RegisterInput) => {
-      const response = await authApi.register(input);
-      await applySession(response.access_token, response.user);
-      return response.user;
+      analytics.track(AnalyticsEvents.AuthRegisterAttempt, {
+        roles: input.roles.join(","),
+      });
+
+      try {
+        const response = await authApi.register(input);
+        await applySession(response.access_token, response.user);
+        analytics.track(AnalyticsEvents.AuthRegisterSuccess);
+        return response.user;
+      } catch (error) {
+        analytics.track(AnalyticsEvents.AuthRegisterFailure);
+        throw error;
+      }
     },
     [applySession],
   );
@@ -156,6 +234,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     }
 
     await clearSession();
+    analytics.track(AnalyticsEvents.AuthLogout);
   }, [clearSession, token]);
 
   const enableTwoFactor = useCallback(async () => {
@@ -198,6 +277,14 @@ export function AuthProvider({ children }: PropsWithChildren) {
           setToken(storedToken);
           setUser(nextUser);
           await rememberRoleForUser(nextUser, storedActiveRole);
+          analytics.identify(String(nextUser.id), { roles: nextUser.roles?.join(",") });
+          setSentryUser({ id: nextUser.id, roles: nextUser.roles });
+
+          syncPushTokenWithBackend(storedToken).then((pushToken) => {
+            if (mounted) {
+              pushTokenRef.current = pushToken;
+            }
+          });
         }
       } catch {
         await clearStoredToken();
@@ -228,6 +315,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       selectRole,
       logout,
       refreshUser,
+      resendEmailVerification,
       enableTwoFactor,
       disableTwoFactor,
     }),
@@ -240,6 +328,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       login,
       logout,
       refreshUser,
+      resendEmailVerification,
       register,
       selectRole,
       token,

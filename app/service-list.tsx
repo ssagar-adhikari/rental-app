@@ -1,16 +1,43 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useState } from "react";
-import { ActivityIndicator, FlatList, Image, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { useMemo, useState } from "react";
+import { ActivityIndicator, FlatList, Image, RefreshControl, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import RoomCard from "../components/RoomCard";
 import { Colors } from "../constants/theme";
 import { useListings } from "../context/ListingsContext";
-import type { RentalListing } from "../types/rental";
+import { mapApiListingToRentalListing } from "../services/listingApi";
+import type { ListingSortKey } from "../utils/listingFilters";
+import { filterAndSortListings } from "../utils/listingFilters";
+import type { ListingType, RentalListing } from "../types/rental";
 
 const COLORS = Colors.light;
 
+const typeOptions: { label: string; value: ListingType | "all"; icon: keyof typeof Ionicons.glyphMap }[] = [
+  { label: "All", value: "all", icon: "apps-outline" },
+  { label: "Physical", value: "physical", icon: "home-outline" },
+  { label: "Service", value: "service", icon: "briefcase-outline" },
+  { label: "Hybrid", value: "hybrid", icon: "swap-horizontal-outline" },
+];
+
+const sortOptions: { label: string; value: ListingSortKey }[] = [
+  { label: "Newest", value: "newest" },
+  { label: "Relevant", value: "relevance" },
+  { label: "Price Low", value: "price_asc" },
+  { label: "Price High", value: "price_desc" },
+  { label: "Top Rated", value: "rating_desc" },
+];
+
+const ratingOptions = [
+  { label: "Any Rating", value: null },
+  { label: "4.5+", value: 4.5 },
+  { label: "4.0+", value: 4 },
+  { label: "3.5+", value: 3.5 },
+];
+
 function ServiceGridCard({ item, onPress }: { item: RentalListing; onPress: () => void }) {
   const [priceAmount, priceUnit] = item.price.split("/").map((value: string) => value.trim());
+  const firstFeature = item.features[0] ?? "Rental";
+  const secondFeature = item.features[1] ?? "Available";
 
   return (
     <TouchableOpacity activeOpacity={0.88} style={styles.gridCard} onPress={onPress}>
@@ -43,11 +70,11 @@ function ServiceGridCard({ item, onPress }: { item: RentalListing; onPress: () =
         <View style={styles.gridMetaRow}>
           <View style={styles.gridMetaPill}>
             <Ionicons name="bed-outline" size={12} color={COLORS.primary} />
-            <Text style={styles.gridMetaText}>2 Bed</Text>
+            <Text style={styles.gridMetaText} numberOfLines={1}>{firstFeature}</Text>
           </View>
           <View style={styles.gridMetaPill}>
             <Ionicons name="water-outline" size={12} color={COLORS.primary} />
-            <Text style={styles.gridMetaText}>2 Bath</Text>
+            <Text style={styles.gridMetaText} numberOfLines={1}>{secondFeature}</Text>
           </View>
         </View>
 
@@ -73,15 +100,45 @@ export default function ServiceListScreen() {
   const { categoryName } = useLocalSearchParams();
   const { categoryId } = useLocalSearchParams();
   const router = useRouter();
-  const { listings, loading, rentalListings } = useListings();
+  const { hasMoreListings, listings, loading, loadingMore, loadMoreListings, publicError, refreshListings, refreshing } = useListings();
   const [viewMode, setViewMode] = useState<"grid" | "row">("grid");
+  const [filtersVisible, setFiltersVisible] = useState(false);
+  const [searchText, setSearchText] = useState("");
+  const [cityFilter, setCityFilter] = useState("");
+  const [minPrice, setMinPrice] = useState("");
+  const [maxPrice, setMaxPrice] = useState("");
+  const [selectedType, setSelectedType] = useState<ListingType | "all">("all");
+  const [sortBy, setSortBy] = useState<ListingSortKey>("newest");
+  const [minRating, setMinRating] = useState<number | null>(null);
   const categoryTitle = Array.isArray(categoryName) ? categoryName[0] : categoryName;
   const selectedCategoryId = Number(Array.isArray(categoryId) ? categoryId[0] : categoryId);
+  const parsedMinPrice = Number(minPrice);
+  const parsedMaxPrice = Number(maxPrice);
+  const services = useMemo(
+    () =>
+      filterAndSortListings(listings, {
+        query: searchText,
+        categoryId: Number.isFinite(selectedCategoryId) && selectedCategoryId > 0 ? selectedCategoryId : null,
+        listingType: selectedType,
+        city: cityFilter,
+        minPrice: Number.isFinite(parsedMinPrice) && parsedMinPrice > 0 ? parsedMinPrice : null,
+        maxPrice: Number.isFinite(parsedMaxPrice) && parsedMaxPrice > 0 ? parsedMaxPrice : null,
+        minRating,
+        availability: "available",
+        sortBy,
+      }).map(mapApiListingToRentalListing),
+    [cityFilter, listings, minRating, parsedMaxPrice, parsedMinPrice, searchText, selectedCategoryId, selectedType, sortBy],
+  );
 
-  const services =
-    Number.isFinite(selectedCategoryId) && selectedCategoryId > 0
-      ? rentalListings.filter((listing) => listings.some((item) => item.id === listing.id && item.category?.id === selectedCategoryId))
-      : rentalListings;
+  function resetFilters() {
+    setSearchText("");
+    setCityFilter("");
+    setMinPrice("");
+    setMaxPrice("");
+    setSelectedType("all");
+    setSortBy("newest");
+    setMinRating(null);
+  }
 
   const renderItem = ({ item }: { item: RentalListing }) => {
     if (viewMode === "grid") {
@@ -110,7 +167,7 @@ export default function ServiceListScreen() {
             <Text style={styles.headerEyebrow}>Explore rentals</Text>
             <Text style={styles.title} numberOfLines={1}>{categoryTitle || "Services"}</Text>
           </View>
-          <TouchableOpacity style={styles.headerIconBtn}>
+          <TouchableOpacity style={styles.headerIconBtn} onPress={() => setFiltersVisible((current) => !current)}>
             <Ionicons name="options-outline" size={21} color="white" />
           </TouchableOpacity>
         </View>
@@ -123,19 +180,99 @@ export default function ServiceListScreen() {
           <TextInput
             placeholder="Search area, room, apartment..."
             placeholderTextColor="#98A1B3"
+            value={searchText}
+            onChangeText={setSearchText}
             style={styles.searchInput}
           />
-          <View style={styles.searchTuneBtn}>
+          <TouchableOpacity activeOpacity={0.82} style={styles.searchTuneBtn} onPress={() => setFiltersVisible((current) => !current)}>
             <Ionicons name="options-outline" size={17} color={COLORS.primary} />
-          </View>
+          </TouchableOpacity>
         </View>
       </View>
+
+      {filtersVisible ? (
+        <View style={styles.filterPanel}>
+          <View style={styles.filterHeader}>
+            <Text style={styles.filterTitle}>Refine results</Text>
+            <TouchableOpacity activeOpacity={0.75} onPress={resetFilters}>
+              <Text style={styles.resetText}>Reset</Text>
+            </TouchableOpacity>
+          </View>
+
+          <FlatList
+            data={typeOptions}
+            horizontal
+            keyExtractor={(item) => item.value}
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.filterChipRow}
+            renderItem={({ item }) => {
+              const selected = selectedType === item.value;
+
+              return (
+                <TouchableOpacity activeOpacity={0.85} style={[styles.filterChip, selected && styles.selectedFilterChip]} onPress={() => setSelectedType(item.value)}>
+                  <Ionicons name={item.icon} size={15} color={selected ? "white" : COLORS.primary} />
+                  <Text style={[styles.filterChipText, selected && styles.selectedFilterText]}>{item.label}</Text>
+                </TouchableOpacity>
+              );
+            }}
+          />
+
+          <FlatList
+            data={sortOptions}
+            horizontal
+            keyExtractor={(item) => item.value}
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.filterChipRow}
+            renderItem={({ item }) => {
+              const selected = sortBy === item.value;
+
+              return (
+                <TouchableOpacity activeOpacity={0.85} style={[styles.filterChip, selected && styles.selectedFilterChip]} onPress={() => setSortBy(item.value)}>
+                  <Text style={[styles.filterChipText, selected && styles.selectedFilterText]}>{item.label}</Text>
+                </TouchableOpacity>
+              );
+            }}
+          />
+
+          <FlatList
+            data={ratingOptions}
+            horizontal
+            keyExtractor={(item) => item.label}
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.filterChipRow}
+            renderItem={({ item }) => {
+              const selected = minRating === item.value;
+
+              return (
+                <TouchableOpacity activeOpacity={0.85} style={[styles.filterChip, selected && styles.selectedFilterChip]} onPress={() => setMinRating(item.value)}>
+                  <Text style={[styles.filterChipText, selected && styles.selectedFilterText]}>{item.label}</Text>
+                </TouchableOpacity>
+              );
+            }}
+          />
+
+          <View style={styles.filterInputs}>
+            <View style={styles.filterInputShell}>
+              <Ionicons name="location-outline" size={16} color={COLORS.muted} />
+              <TextInput placeholder="City or area" placeholderTextColor="#98A1B3" value={cityFilter} onChangeText={setCityFilter} style={styles.filterInput} />
+            </View>
+            <View style={styles.priceInputRow}>
+              <View style={styles.priceInputShell}>
+                <TextInput keyboardType="numeric" placeholder="Min price" placeholderTextColor="#98A1B3" value={minPrice} onChangeText={setMinPrice} style={styles.filterInput} />
+              </View>
+              <View style={styles.priceInputShell}>
+                <TextInput keyboardType="numeric" placeholder="Max price" placeholderTextColor="#98A1B3" value={maxPrice} onChangeText={setMaxPrice} style={styles.filterInput} />
+              </View>
+            </View>
+          </View>
+        </View>
+      ) : null}
 
       {/* TOGGLE BUTTONS */}
       <View style={styles.toolbar}>
         <View>
           <Text style={styles.resultCount}>{services.length} places found</Text>
-          <Text style={styles.resultHint}>Fresh matches near you</Text>
+          <Text style={styles.resultHint}>{searchText || cityFilter ? "Filtered matches near you" : "Fresh matches near you"}</Text>
         </View>
 
         <View style={styles.toggleContainer}>
@@ -154,6 +291,16 @@ export default function ServiceListScreen() {
         </View>
       </View>
 
+      {publicError ? (
+        <View style={styles.errorBox}>
+          <Ionicons name="alert-circle-outline" size={18} color={COLORS.danger} />
+          <Text style={styles.errorText}>{publicError}</Text>
+          <TouchableOpacity activeOpacity={0.8} style={styles.retryButton} onPress={() => refreshListings()}>
+            <Text style={styles.retryText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
+
       {/* SERVICE LIST */}
       <FlatList
         data={services}
@@ -166,10 +313,26 @@ export default function ServiceListScreen() {
           viewMode === "grid" ? styles.gridContent : styles.listContent,
         ]}
         showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} tintColor={COLORS.primary} onRefresh={() => refreshListings()} />}
+        onEndReached={hasMoreListings ? loadMoreListings : undefined}
+        onEndReachedThreshold={0.35}
+        ListFooterComponent={
+          loadingMore ? (
+            <View style={styles.footerLoader}>
+              <ActivityIndicator color={COLORS.primary} />
+            </View>
+          ) : hasMoreListings ? (
+            <TouchableOpacity activeOpacity={0.85} style={styles.loadMoreButton} onPress={loadMoreListings}>
+              <Text style={styles.loadMoreText}>Load more listings</Text>
+            </TouchableOpacity>
+          ) : null
+        }
         ListEmptyComponent={
           loading ? (
-            <View style={styles.emptyState}>
-              <ActivityIndicator color={COLORS.primary} />
+            <View style={viewMode === "grid" ? styles.gridSkeletonWrap : styles.listSkeletonWrap}>
+              {[0, 1, 2, 3].map((item) => (
+                <View key={item} style={viewMode === "grid" ? styles.gridSkeleton : styles.rowSkeleton} />
+              ))}
             </View>
           ) : (
             <View style={styles.emptyState}>
@@ -257,6 +420,121 @@ const styles = StyleSheet.create({
     backgroundColor: "#EEF2FF",
     alignItems: "center",
     justifyContent: "center",
+  },
+  filterPanel: {
+    backgroundColor: COLORS.surface,
+    borderBottomColor: COLORS.border,
+    borderBottomWidth: 1,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 14,
+  },
+  filterHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 10,
+  },
+  filterTitle: {
+    color: COLORS.text,
+    fontSize: 15,
+    fontWeight: "900",
+  },
+  resetText: {
+    color: COLORS.primary,
+    fontSize: 12,
+    fontWeight: "900",
+  },
+  filterChipRow: {
+    gap: 8,
+    paddingBottom: 10,
+  },
+  filterChip: {
+    alignItems: "center",
+    backgroundColor: COLORS.surfaceMuted,
+    borderColor: "#DDE4FF",
+    borderRadius: 16,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 6,
+    minHeight: 36,
+    paddingHorizontal: 12,
+  },
+  selectedFilterChip: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  filterChipText: {
+    color: COLORS.primary,
+    fontSize: 12,
+    fontWeight: "900",
+  },
+  selectedFilterText: {
+    color: "white",
+  },
+  filterInputs: {
+    gap: 10,
+  },
+  filterInputShell: {
+    alignItems: "center",
+    backgroundColor: "#FBFCFF",
+    borderColor: COLORS.border,
+    borderRadius: 14,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 8,
+    minHeight: 44,
+    paddingHorizontal: 12,
+  },
+  filterInput: {
+    color: COLORS.text,
+    flex: 1,
+    fontSize: 14,
+    fontWeight: "700",
+    paddingVertical: 0,
+  },
+  priceInputRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  priceInputShell: {
+    backgroundColor: "#FBFCFF",
+    borderColor: COLORS.border,
+    borderRadius: 14,
+    borderWidth: 1,
+    flex: 1,
+    minHeight: 44,
+    paddingHorizontal: 12,
+    justifyContent: "center",
+  },
+  errorBox: {
+    alignItems: "center",
+    backgroundColor: "#FEF2F2",
+    borderColor: "#FAD4D4",
+    borderRadius: 14,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 8,
+    marginHorizontal: 16,
+    marginBottom: 8,
+    padding: 12,
+  },
+  errorText: {
+    color: COLORS.danger,
+    flex: 1,
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  retryButton: {
+    backgroundColor: COLORS.surface,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+  retryText: {
+    color: COLORS.primary,
+    fontSize: 12,
+    fontWeight: "900",
   },
   toolbar: {
     flexDirection: "row",
@@ -444,6 +722,45 @@ const styles = StyleSheet.create({
   rowCard: {
     width: "100%",
     marginRight: 0,
+  },
+  footerLoader: {
+    paddingVertical: 22,
+  },
+  loadMoreButton: {
+    alignItems: "center",
+    backgroundColor: COLORS.surface,
+    borderColor: COLORS.border,
+    borderRadius: 14,
+    borderWidth: 1,
+    marginTop: 6,
+    paddingVertical: 13,
+  },
+  loadMoreText: {
+    color: COLORS.primary,
+    fontSize: 13,
+    fontWeight: "900",
+  },
+  gridSkeletonWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 14,
+    padding: 16,
+  },
+  listSkeletonWrap: {
+    gap: 14,
+    padding: 16,
+  },
+  gridSkeleton: {
+    backgroundColor: COLORS.border,
+    borderRadius: 18,
+    height: 230,
+    width: "47%",
+  },
+  rowSkeleton: {
+    backgroundColor: COLORS.border,
+    borderRadius: 18,
+    height: 156,
+    width: "100%",
   },
   emptyState: {
     alignItems: "center",

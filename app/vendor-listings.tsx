@@ -90,7 +90,7 @@ function VendorListingCard({
 
 export default function VendorListingsScreen() {
   const { loading, user } = useAuth();
-  const { error, refreshVendorListings, transitionListing, vendorListings, vendorLoading } = useListings();
+  const { refreshVendorListings, transitionListing, vendorError, vendorListings, vendorLoading } = useListings();
   const [busyId, setBusyId] = useState<number | null>(null);
   const activeListings = vendorListings.filter((listing) => listing.status !== "archived");
 
@@ -155,10 +155,10 @@ export default function VendorListingsScreen() {
         </TouchableOpacity>
       </View>
 
-      {error ? (
+      {vendorError ? (
         <View style={styles.errorBox}>
           <Ionicons name="alert-circle-outline" size={18} color={Colors.light.danger} />
-          <Text style={styles.errorText}>{error}</Text>
+          <Text style={styles.errorText}>{vendorError}</Text>
         </View>
       ) : null}
 
