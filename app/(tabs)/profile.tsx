@@ -21,6 +21,7 @@ const menuItems = [
   { icon: "location-outline", title: "Saved Locations", color: "#27ae60", route: null },
   { icon: "time-outline", title: "Booking History", color: "#9b59b6", route: null },
   { icon: "wallet-outline", title: "Payment Methods", color: "#1abc9c", route: null },
+  { icon: "phone-portrait-outline", title: "Devices", color: "#34495e", route: "/devices" as Href },
   { icon: "shield-checkmark-outline", title: "Privacy & Security", color: "#34495e", route: null },
   { icon: "help-circle-outline", title: "Help & Support", color: "#3498db", route: null },
   { icon: "information-circle-outline", title: "About Us", color: "#7f8c8d", route: null },
