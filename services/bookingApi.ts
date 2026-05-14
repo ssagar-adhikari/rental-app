@@ -62,6 +62,14 @@ export const bookingApi = {
     });
   },
 
+  transitionVendorBooking(id: number, status: "confirmed" | "active" | "completed", token: string) {
+    return apiRequest<ApiBooking>(`/vendor/bookings/${id}/transition`, {
+      method: "POST",
+      body: { status },
+      token,
+    });
+  },
+
   showByNumber(bookingNumber: string, token: string) {
     return apiRequest<ApiBooking>(`/bookings/by-number/${encodeURIComponent(bookingNumber)}`, { token });
   },

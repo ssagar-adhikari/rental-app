@@ -21,6 +21,7 @@ type BookingsContextValue = {
   loadMoreVendorBookings: () => Promise<void>;
   loadVendorBooking: (id: number) => Promise<ApiBooking>;
   cancelVendorBooking: (id: number, reason?: string) => Promise<ApiBooking>;
+  transitionVendorBooking: (id: number, status: "confirmed" | "active" | "completed") => Promise<ApiBooking>;
 };
 
 const BookingsContext = createContext<BookingsContextValue | null>(null);
@@ -152,6 +153,24 @@ export function BookingsProvider({ children }: PropsWithChildren) {
     [cancelMutation],
   );
 
+  const transitionMutation = useMutation({
+    mutationFn: ({ id, status }: { id: number; status: "confirmed" | "active" | "completed" }) => {
+      if (!token) {
+        throw new Error("Please log in as a vendor to update bookings.");
+      }
+      return bookingApi.transitionVendorBooking(id, status, token);
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: vendorBookingsListKey });
+      queryClient.invalidateQueries({ queryKey: vendorBookingByIdKey(variables.id) });
+    },
+  });
+
+  const transitionVendorBooking = useCallback(
+    (id: number, status: "confirmed" | "active" | "completed") => transitionMutation.mutateAsync({ id, status }),
+    [transitionMutation],
+  );
+
   const bookingMetrics = useMemo(() => buildMetrics(vendorBookings), [vendorBookings]);
 
   const value = useMemo<BookingsContextValue>(
@@ -167,10 +186,12 @@ export function BookingsProvider({ children }: PropsWithChildren) {
       loadMoreVendorBookings,
       loadVendorBooking,
       cancelVendorBooking,
+      transitionVendorBooking,
     }),
     [
       bookingMetrics,
       cancelVendorBooking,
+      transitionVendorBooking,
       isVendor,
       loadMoreVendorBookings,
       loadVendorBooking,

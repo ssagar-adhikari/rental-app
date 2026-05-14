@@ -99,9 +99,34 @@ export default function VendorBookingsScreen() {
     refreshVendorBookings,
     loadMoreVendorBookings,
     cancelVendorBooking,
+    transitionVendorBooking,
   } = useBookings();
   const [selectedStatus, setSelectedStatus] = useState<StatusFilter>("all");
   const [cancellingId, setCancellingId] = useState<number | null>(null);
+  const [transitioningId, setTransitioningId] = useState<number | null>(null);
+
+  const transitionBooking = useCallback(
+    async (booking: ApiBooking, next: "confirmed" | "active" | "completed", confirmText: string) => {
+      Alert.alert(confirmText, `Booking ${booking.booking_number} will move to ${next}.`, [
+        { text: "Not yet", style: "cancel" },
+        {
+          text: "Confirm",
+          onPress: async () => {
+            setTransitioningId(booking.id);
+            try {
+              await transitionVendorBooking(booking.id, next);
+              await refreshVendorBookings({ status: selectedStatus === "all" ? undefined : selectedStatus });
+            } catch (exception) {
+              Alert.alert("Could not update booking", exception instanceof Error ? exception.message : "Please try again.");
+            } finally {
+              setTransitioningId(null);
+            }
+          },
+        },
+      ]);
+    },
+    [transitionVendorBooking, refreshVendorBookings, selectedStatus],
+  );
 
   useEffect(() => {
     refreshVendorBookings({ status: selectedStatus === "all" ? undefined : selectedStatus });
@@ -209,26 +234,79 @@ export default function VendorBookingsScreen() {
         <View style={styles.cardFooter}>
           <Text style={styles.createdText}>Requested {formatDate(item.created_at)}</Text>
 
-          {canCancel ? (
-            <TouchableOpacity
-              accessibilityLabel={`Cancel booking ${item.booking_number ?? item.id}`}
-              accessibilityRole="button"
-              accessibilityState={{ disabled: cancellingId === item.id, busy: cancellingId === item.id }}
-              activeOpacity={0.85}
-              disabled={cancellingId === item.id}
-              style={styles.cancelButton}
-              onPress={() => confirmCancel(item)}
-            >
-              {cancellingId === item.id ? (
-                <ActivityIndicator color={Colors.light.danger} size="small" />
-              ) : (
-                <>
-                  <Ionicons name="close-circle-outline" size={17} color={Colors.light.danger} />
-                  <Text style={styles.cancelText}>Cancel</Text>
-                </>
-              )}
-            </TouchableOpacity>
-          ) : null}
+          <View style={styles.actionRow}>
+            {item.status === "pending" ? (
+              <TouchableOpacity
+                accessibilityLabel={`Confirm booking ${item.booking_number ?? item.id}`}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: transitioningId === item.id, busy: transitioningId === item.id }}
+                activeOpacity={0.85}
+                disabled={transitioningId === item.id}
+                style={styles.confirmButton}
+                onPress={() => transitionBooking(item, "confirmed", "Confirm this booking?")}
+              >
+                {transitioningId === item.id ? (
+                  <ActivityIndicator color="white" size="small" />
+                ) : (
+                  <>
+                    <Ionicons name="checkmark-circle-outline" size={17} color="white" />
+                    <Text style={styles.confirmText}>Confirm</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            ) : null}
+
+            {item.status === "confirmed" ? (
+              <TouchableOpacity
+                accessibilityLabel={`Mark booking ${item.booking_number ?? item.id} active`}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: transitioningId === item.id, busy: transitioningId === item.id }}
+                activeOpacity={0.85}
+                disabled={transitioningId === item.id}
+                style={styles.secondaryButton}
+                onPress={() => transitionBooking(item, "active", "Mark as active?")}
+              >
+                <Ionicons name="play-circle-outline" size={17} color={Colors.light.primary} />
+                <Text style={styles.secondaryText}>Mark active</Text>
+              </TouchableOpacity>
+            ) : null}
+
+            {item.status === "active" ? (
+              <TouchableOpacity
+                accessibilityLabel={`Mark booking ${item.booking_number ?? item.id} completed`}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: transitioningId === item.id, busy: transitioningId === item.id }}
+                activeOpacity={0.85}
+                disabled={transitioningId === item.id}
+                style={styles.secondaryButton}
+                onPress={() => transitionBooking(item, "completed", "Mark as completed?")}
+              >
+                <Ionicons name="checkmark-done-outline" size={17} color={Colors.light.primary} />
+                <Text style={styles.secondaryText}>Mark completed</Text>
+              </TouchableOpacity>
+            ) : null}
+
+            {canCancel ? (
+              <TouchableOpacity
+                accessibilityLabel={`Cancel booking ${item.booking_number ?? item.id}`}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: cancellingId === item.id, busy: cancellingId === item.id }}
+                activeOpacity={0.85}
+                disabled={cancellingId === item.id}
+                style={styles.cancelButton}
+                onPress={() => confirmCancel(item)}
+              >
+                {cancellingId === item.id ? (
+                  <ActivityIndicator color={Colors.light.danger} size="small" />
+                ) : (
+                  <>
+                    <Ionicons name="close-circle-outline" size={17} color={Colors.light.danger} />
+                    <Text style={styles.cancelText}>Cancel</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            ) : null}
+          </View>
         </View>
       </View>
     );
@@ -466,9 +544,46 @@ const styles = StyleSheet.create({
     flex: 1,
     ...Typography.label,
   },
+  actionRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: Spacing.sm,
+    justifyContent: "flex-end",
+  },
+  confirmButton: {
+    alignItems: "center",
+    backgroundColor: Colors.light.primary,
+    borderRadius: Radius.pill,
+    flexDirection: "row",
+    gap: Spacing.xs,
+    minHeight: 36,
+    paddingHorizontal: Spacing.md,
+  },
+  confirmText: {
+    color: "white",
+    ...Typography.label,
+    fontWeight: "900",
+  },
+  secondaryButton: {
+    alignItems: "center",
+    backgroundColor: Colors.light.surfaceMuted,
+    borderColor: "#DDE4FF",
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: Spacing.xs,
+    minHeight: 36,
+    paddingHorizontal: Spacing.md,
+  },
+  secondaryText: {
+    color: Colors.light.primary,
+    ...Typography.label,
+    fontWeight: "900",
+  },
   cancelButton: {
     alignItems: "center",
-    backgroundColor: "#FEF2F2",
+    backgroundColor: Colors.light.dangerSoft,
     borderRadius: Radius.pill,
     flexDirection: "row",
     gap: Spacing.xs,
