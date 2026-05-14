@@ -12,20 +12,19 @@ import type { UserRole } from "@/types/auth";
 import { getPostAuthRoute, getRoleRoute, hasMultipleAppRoles, type AppRole } from "@/utils/authRoutes";
 import type { IconName } from "@/types/rental";
 
+// Profile menu only lists rows that resolve to a real screen. Dropped
+// rows that had route: null (Edit Profile — needs a backend
+// PATCH /user, Saved Locations — no backend concept, Payment Methods
+// — payments out of scope, Privacy & Security / Help & Support /
+// About Us — placeholder screens). Add them back as their backends land.
 const menuItems = [
-  { icon: "person-outline", title: "Edit Profile", color: Colors.light.primary, route: null },
   { icon: "heart-outline", title: "Favorites", color: "#e74c3c", route: "/favorites" as Href },
   { icon: "bookmark-outline", title: "Saved Searches", color: Colors.light.primary, route: "/saved-searches" as Href },
   { icon: "chatbubbles-outline", title: "Messages", color: "#16a085", route: "/inbox" as Href },
   { icon: "notifications-outline", title: "Notifications", color: "#f39c12", route: "/notifications" as Href },
-  { icon: "location-outline", title: "Saved Locations", color: "#27ae60", route: null },
   { icon: "time-outline", title: "Booking History", color: "#9b59b6", route: "/my-bookings" as Href },
-  { icon: "wallet-outline", title: "Payment Methods", color: "#1abc9c", route: null },
   { icon: "phone-portrait-outline", title: "Devices", color: "#34495e", route: "/devices" as Href },
-  { icon: "shield-checkmark-outline", title: "Privacy & Security", color: "#34495e", route: null },
-  { icon: "help-circle-outline", title: "Help & Support", color: "#3498db", route: null },
-  { icon: "information-circle-outline", title: "About Us", color: "#7f8c8d", route: null },
-] satisfies { icon: IconName; title: string; color: string; route: Href | null }[];
+] satisfies { icon: IconName; title: string; color: string; route: Href }[];
 
 const roleLabels: Record<AppRole, string> = {
   customer: "Customer",
@@ -170,9 +169,6 @@ export default function ProfileScreen() {
                   source={{ uri: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=400" }}
                   style={styles.avatar}
                 />
-                <TouchableOpacity accessibilityLabel="Change profile photo" accessibilityRole="button" style={styles.editAvatarBtn}>
-                  <Ionicons name="camera" size={16} color="white" />
-                </TouchableOpacity>
               </View>
               <Text style={styles.userName}>{user.name}</Text>
               <Text style={styles.userEmail}>{user.email}</Text>
@@ -304,32 +300,13 @@ export default function ProfileScreen() {
 
             <View style={styles.menuSection}>
               <Text style={styles.menuSectionTitle}>Account</Text>
-              {menuItems.slice(0, 5).map((item, index) => (
+              {menuItems.map((item, index) => (
                 <TouchableOpacity
                   accessibilityLabel={item.title}
                   accessibilityRole="button"
                   key={index}
                   style={styles.menuItem}
-                  onPress={() => (item.route ? router.push(item.route) : null)}
-                >
-                  <View style={[styles.menuIcon, { backgroundColor: item.color + "20" }]}>
-                    <Ionicons name={item.icon} size={20} color={item.color} />
-                  </View>
-                  <Text style={styles.menuTitle}>{item.title}</Text>
-                  <Ionicons name="chevron-forward" size={20} color="#bdc3c7" />
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            <View style={styles.menuSection}>
-              <Text style={styles.menuSectionTitle}>Settings</Text>
-              {menuItems.slice(5).map((item, index) => (
-                <TouchableOpacity
-                  accessibilityLabel={item.title}
-                  accessibilityRole="button"
-                  key={index}
-                  style={styles.menuItem}
-                  onPress={() => (item.route ? router.push(item.route) : null)}
+                  onPress={() => router.push(item.route)}
                 >
                   <View style={[styles.menuIcon, { backgroundColor: item.color + "20" }]}>
                     <Ionicons name={item.icon} size={20} color={item.color} />
