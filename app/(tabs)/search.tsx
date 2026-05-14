@@ -1,13 +1,15 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useRouter, type Href } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import { FlatList, Image, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { AppHeader } from "@/components/AppHeader";
 import { Screen } from "@/components/Screen";
 import { SectionHeader } from "@/components/SectionHeader";
 import { Colors, Radius, Shadows, Spacing, Typography } from "@/constants/theme";
+import { useAuth } from "@/context/AuthContext";
 import { useCategories } from "@/context/CategoriesContext";
 import { useListings } from "@/context/ListingsContext";
+import { useFavoriteIds, useToggleFavorite } from "@/hooks/queries/favorites";
 import { mapApiListingToRentalListing } from "@/services/listingApi";
 import type { ListingSortKey } from "@/utils/listingFilters";
 import { filterAndSortListings } from "@/utils/listingFilters";
@@ -38,8 +40,20 @@ const ratingOptions = [
 
 export default function SearchScreen() {
   const router = useRouter();
+  const { token } = useAuth();
   const { hasMoreListings, listings, loadingMore, loadMoreListings, publicError, refreshListings, refreshing } = useListings();
   const { categories } = useCategories();
+  const favoriteIds = useFavoriteIds();
+  const toggleFavorite = useToggleFavorite();
+
+  function onToggleFavorite(listingId: number) {
+    if (!token) {
+      router.push("/login" as Href);
+      return;
+    }
+    toggleFavorite.mutate({ listingId, currentlyFavorited: favoriteIds.has(listingId) });
+  }
+
   const [searchText, setSearchText] = useState("");
   const [isFocused, setIsFocused] = useState(false);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
@@ -365,8 +379,14 @@ export default function SearchScreen() {
                   <Text style={styles.nearbyLocation}>{item.location}</Text>
                 </View>
               </View>
-              <TouchableOpacity accessibilityLabel={`Favorite ${item.title}`} accessibilityRole="button" style={styles.heartBtn}>
-                <Ionicons name="heart-outline" size={22} color={Colors.light.danger} />
+              <TouchableOpacity
+                accessibilityLabel={favoriteIds.has(item.id) ? `Remove ${item.title} from favorites` : `Save ${item.title} to favorites`}
+                accessibilityRole="button"
+                accessibilityState={{ selected: favoriteIds.has(item.id) }}
+                style={styles.heartBtn}
+                onPress={() => onToggleFavorite(item.id)}
+              >
+                <Ionicons name={favoriteIds.has(item.id) ? "heart" : "heart-outline"} size={22} color={Colors.light.danger} />
               </TouchableOpacity>
             </TouchableOpacity>
           ))}

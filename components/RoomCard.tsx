@@ -10,11 +10,13 @@ import { lightImpactHaptic, selectionHaptic } from "@/utils/haptics";
 type RoomCardProps = {
   item: RentalListing;
   cardStyle?: StyleProp<ViewStyle>;
+  isFavorited?: boolean;
+  onToggleFavorite?: () => void;
 };
 
 const featureIcons = ["bed-outline", "water-outline", "resize-outline"] as const;
 
-export default function RoomCard({ item, cardStyle }: RoomCardProps) {
+export default function RoomCard({ item, cardStyle, isFavorited, onToggleFavorite }: RoomCardProps) {
   const router = useRouter();
   const [imageFailed, setImageFailed] = useState(false);
   const [priceAmount, priceUnit] = item.price.split("/").map((value) => value.trim());
@@ -45,15 +47,21 @@ export default function RoomCard({ item, cardStyle }: RoomCardProps) {
         <Text style={styles.ratingText}>{item.rating.toFixed(1)}</Text>
       </View>
 
-      <TouchableOpacity
-        accessibilityLabel={`Save ${item.title}`}
-        accessibilityRole="button"
-        activeOpacity={0.8}
-        style={styles.heartBtn}
-        onPress={selectionHaptic}
-      >
-        <Ionicons name="heart-outline" size={18} color="white" />
-      </TouchableOpacity>
+      {onToggleFavorite ? (
+        <TouchableOpacity
+          accessibilityLabel={isFavorited ? `Remove ${item.title} from favorites` : `Save ${item.title} to favorites`}
+          accessibilityRole="button"
+          accessibilityState={{ selected: !!isFavorited }}
+          activeOpacity={0.8}
+          style={styles.heartBtn}
+          onPress={() => {
+            selectionHaptic();
+            onToggleFavorite();
+          }}
+        >
+          <Ionicons name={isFavorited ? "heart" : "heart-outline"} size={18} color={isFavorited ? Colors.light.danger : "white"} />
+        </TouchableOpacity>
+      ) : null}
 
       <View style={styles.info}>
         <Text style={styles.title} numberOfLines={1}>

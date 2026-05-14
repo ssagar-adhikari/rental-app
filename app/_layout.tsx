@@ -91,6 +91,7 @@ export default function RootLayout() {
                           <Stack.Screen name="register" />
                           <Stack.Screen name="forgot-password" />
                           <Stack.Screen name="reset-password" />
+                          <Stack.Screen name="favorites" />
                           <Stack.Screen name="listings/[slug]" />
                           <Stack.Screen name="bookings/[number]" />
                           <Stack.Screen name="email/verify/[id]/[hash]" />

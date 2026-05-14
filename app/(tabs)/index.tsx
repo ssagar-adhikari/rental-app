@@ -1,3 +1,4 @@
+import { useRouter, type Href } from "expo-router";
 import { FlatList, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import CategoryCard from "@/components/CategoryCard";
 import Header from "@/components/Header";
@@ -5,19 +6,38 @@ import RoomCard from "@/components/RoomCard";
 import { Screen } from "@/components/Screen";
 import { SectionHeader } from "@/components/SectionHeader";
 import { Colors, Radius, Spacing, Typography } from "@/constants/theme";
+import { useAuth } from "@/context/AuthContext";
 import { useCategories } from "@/context/CategoriesContext";
 import { useListings } from "@/context/ListingsContext";
+import { useFavoriteIds, useToggleFavorite } from "@/hooks/queries/favorites";
 import type { RentalListing } from "@/types/rental";
 
 export default function HomeScreen() {
+  const router = useRouter();
+  const { token } = useAuth();
   const { loading, publicError, refreshListings, refreshing, rentalListings } = useListings();
   const { categories, loading: categoriesLoading, refreshCategories } = useCategories();
+  const favoriteIds = useFavoriteIds();
+  const toggleFavorite = useToggleFavorite();
   const trendingListings = [...rentalListings].sort((a, b) => b.rating - a.rating);
   const showListingSkeleton = loading && !rentalListings.length;
   const showCategorySkeleton = categoriesLoading && !categories.length;
 
+  function onToggleFavorite(listingId: number) {
+    if (!token) {
+      router.push("/login" as Href);
+      return;
+    }
+    toggleFavorite.mutate({ listingId, currentlyFavorited: favoriteIds.has(listingId) });
+  }
+
   const renderHorizontalRoomCard = ({ item }: { item: RentalListing }) => (
-    <RoomCard item={item} cardStyle={styles.horizontalRoomCard} />
+    <RoomCard
+      item={item}
+      cardStyle={styles.horizontalRoomCard}
+      isFavorited={favoriteIds.has(item.id)}
+      onToggleFavorite={() => onToggleFavorite(item.id)}
+    />
   );
 
   async function refreshHome() {

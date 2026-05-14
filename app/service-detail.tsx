@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter, type Href } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
@@ -15,7 +15,9 @@ import MapView from "react-native-maps/lib/MapView";
 import Marker from "react-native-maps/lib/MapMarker";
 import { PROVIDER_GOOGLE } from "react-native-maps/lib/ProviderConstants";
 import { Colors, Radius, Shadows, Spacing, TouchTarget, Typography } from "../constants/theme";
+import { useAuth } from "../context/AuthContext";
 import { useListings } from "../context/ListingsContext";
+import { useFavoriteIds, useToggleFavorite } from "../hooks/queries/favorites";
 import { getListingImage, mapApiListingToRentalListing } from "../services/listingApi";
 import type { ApiListing, IconName, ListingLocation, ListingStatus, ListingType } from "../types/rental";
 import { lightImpactHaptic, selectionHaptic } from "../utils/haptics";
@@ -179,7 +181,10 @@ function sectionTitleForType(type: ListingType) {
 export default function ServiceDetailScreen() {
   const { serviceId } = useLocalSearchParams();
   const router = useRouter();
+  const { token } = useAuth();
   const { listings, loadListing } = useListings();
+  const favoriteIds = useFavoriteIds();
+  const toggleFavorite = useToggleFavorite();
   const selectedId = Number(Array.isArray(serviceId) ? serviceId[0] : serviceId);
   const cachedListing = listings.find((item) => item.id === selectedId);
   const [detailListing, setDetailListing] = useState<ApiListing | null>(cachedListing ?? null);
@@ -196,7 +201,7 @@ export default function ServiceDetailScreen() {
     return mediaUrls.length ? mediaUrls : [getListingImage(detailListing)];
   }, [detailListing]);
 
-  const [isFavorite, setIsFavorite] = useState(false);
+  const isFavorite = detailListing ? favoriteIds.has(detailListing.id) : false;
   const [failedImages, setFailedImages] = useState<Record<string, boolean>>({});
   const [currentIndex, setCurrentIndex] = useState(0);
   const scrollX = useRef(new Animated.Value(0)).current;
@@ -342,10 +347,18 @@ export default function ServiceDetailScreen() {
               <TouchableOpacity
                 accessibilityLabel={isFavorite ? "Remove from saved listings" : "Save listing"}
                 accessibilityRole="button"
+                accessibilityState={{ selected: isFavorite }}
                 style={styles.circleButton}
                 onPress={() => {
+                  if (!detailListing) {
+                    return;
+                  }
+                  if (!token) {
+                    router.push("/login" as Href);
+                    return;
+                  }
                   selectionHaptic();
-                  setIsFavorite(!isFavorite);
+                  toggleFavorite.mutate({ listingId: detailListing.id, currentlyFavorited: isFavorite });
                 }}
               >
                 <Ionicons

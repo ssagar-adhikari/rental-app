@@ -1,9 +1,11 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter, type Href } from "expo-router";
 import { useMemo, useState } from "react";
 import { ActivityIndicator, FlatList, Image, RefreshControl, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import RoomCard from "../components/RoomCard";
 import { Colors } from "../constants/theme";
+import { useAuth } from "../context/AuthContext";
+import { useFavoriteIds, useToggleFavorite } from "../hooks/queries/favorites";
 import { useListings } from "../context/ListingsContext";
 import { mapApiListingToRentalListing } from "../services/listingApi";
 import type { ListingSortKey } from "../utils/listingFilters";
@@ -34,7 +36,17 @@ const ratingOptions = [
   { label: "3.5+", value: 3.5 },
 ];
 
-function ServiceGridCard({ item, onPress }: { item: RentalListing; onPress: () => void }) {
+function ServiceGridCard({
+  item,
+  isFavorited,
+  onPress,
+  onToggleFavorite,
+}: {
+  item: RentalListing;
+  isFavorited: boolean;
+  onPress: () => void;
+  onToggleFavorite: () => void;
+}) {
   const [priceAmount, priceUnit] = item.price.split("/").map((value: string) => value.trim());
   const firstFeature = item.features[0] ?? "Rental";
   const secondFeature = item.features[1] ?? "Available";
@@ -56,8 +68,15 @@ function ServiceGridCard({ item, onPress }: { item: RentalListing; onPress: () =
           <Text style={styles.gridRatingText}>{item.rating.toFixed(1)}</Text>
         </View>
 
-        <TouchableOpacity accessibilityLabel={`Favorite ${item.title}`} accessibilityRole="button" activeOpacity={0.75} style={styles.gridHeartBtn}>
-          <Ionicons name="heart-outline" size={16} color="white" />
+        <TouchableOpacity
+          accessibilityLabel={isFavorited ? `Remove ${item.title} from favorites` : `Save ${item.title} to favorites`}
+          accessibilityRole="button"
+          accessibilityState={{ selected: isFavorited }}
+          activeOpacity={0.75}
+          style={styles.gridHeartBtn}
+          onPress={onToggleFavorite}
+        >
+          <Ionicons name={isFavorited ? "heart" : "heart-outline"} size={16} color={isFavorited ? COLORS.danger : "white"} />
         </TouchableOpacity>
       </View>
 
@@ -106,7 +125,19 @@ export default function ServiceListScreen() {
   const { categoryName } = useLocalSearchParams();
   const { categoryId } = useLocalSearchParams();
   const router = useRouter();
+  const { token } = useAuth();
   const { hasMoreListings, listings, loading, loadingMore, loadMoreListings, publicError, refreshListings, refreshing } = useListings();
+  const favoriteIds = useFavoriteIds();
+  const toggleFavorite = useToggleFavorite();
+
+  function onToggleFavorite(listingId: number) {
+    if (!token) {
+      router.push("/login" as Href);
+      return;
+    }
+    toggleFavorite.mutate({ listingId, currentlyFavorited: favoriteIds.has(listingId) });
+  }
+
   const [viewMode, setViewMode] = useState<"grid" | "row">("grid");
   const [filtersVisible, setFiltersVisible] = useState(false);
   const [searchText, setSearchText] = useState("");
@@ -150,13 +181,23 @@ export default function ServiceListScreen() {
     if (viewMode === "grid") {
       return (
         <View style={styles.gridItem}>
-          <ServiceGridCard item={item} onPress={() => router.push(`/service-detail?serviceId=${item.id}`)} />
+          <ServiceGridCard
+            item={item}
+            isFavorited={favoriteIds.has(item.id)}
+            onPress={() => router.push(`/service-detail?serviceId=${item.id}`)}
+            onToggleFavorite={() => onToggleFavorite(item.id)}
+          />
         </View>
       );
     }
     return (
       <View style={styles.rowItem}>
-        <RoomCard item={item} cardStyle={styles.rowCard} />
+        <RoomCard
+          item={item}
+          cardStyle={styles.rowCard}
+          isFavorited={favoriteIds.has(item.id)}
+          onToggleFavorite={() => onToggleFavorite(item.id)}
+        />
       </View>
     );
   };

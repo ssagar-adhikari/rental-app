@@ -12,16 +12,16 @@ import { getPostAuthRoute, getRoleRoute, hasMultipleAppRoles, type AppRole } fro
 import type { IconName } from "@/types/rental";
 
 const menuItems = [
-  { icon: "person-outline", title: "Edit Profile", color: Colors.light.primary },
-  { icon: "heart-outline", title: "Favorites", color: "#e74c3c" },
-  { icon: "notifications-outline", title: "Notifications", color: "#f39c12" },
-  { icon: "location-outline", title: "Saved Locations", color: "#27ae60" },
-  { icon: "time-outline", title: "Booking History", color: "#9b59b6" },
-  { icon: "wallet-outline", title: "Payment Methods", color: "#1abc9c" },
-  { icon: "shield-checkmark-outline", title: "Privacy & Security", color: "#34495e" },
-  { icon: "help-circle-outline", title: "Help & Support", color: "#3498db" },
-  { icon: "information-circle-outline", title: "About Us", color: "#7f8c8d" },
-] satisfies { icon: IconName; title: string; color: string }[];
+  { icon: "person-outline", title: "Edit Profile", color: Colors.light.primary, route: null },
+  { icon: "heart-outline", title: "Favorites", color: "#e74c3c", route: "/favorites" as Href },
+  { icon: "notifications-outline", title: "Notifications", color: "#f39c12", route: null },
+  { icon: "location-outline", title: "Saved Locations", color: "#27ae60", route: null },
+  { icon: "time-outline", title: "Booking History", color: "#9b59b6", route: null },
+  { icon: "wallet-outline", title: "Payment Methods", color: "#1abc9c", route: null },
+  { icon: "shield-checkmark-outline", title: "Privacy & Security", color: "#34495e", route: null },
+  { icon: "help-circle-outline", title: "Help & Support", color: "#3498db", route: null },
+  { icon: "information-circle-outline", title: "About Us", color: "#7f8c8d", route: null },
+] satisfies { icon: IconName; title: string; color: string; route: Href | null }[];
 
 const roleLabels: Record<AppRole, string> = {
   customer: "Customer",
@@ -269,7 +269,13 @@ export default function ProfileScreen() {
             <View style={styles.menuSection}>
               <Text style={styles.menuSectionTitle}>Account</Text>
               {menuItems.slice(0, 5).map((item, index) => (
-                <TouchableOpacity accessibilityLabel={item.title} accessibilityRole="button" key={index} style={styles.menuItem}>
+                <TouchableOpacity
+                  accessibilityLabel={item.title}
+                  accessibilityRole="button"
+                  key={index}
+                  style={styles.menuItem}
+                  onPress={() => (item.route ? router.push(item.route) : null)}
+                >
                   <View style={[styles.menuIcon, { backgroundColor: item.color + "20" }]}>
                     <Ionicons name={item.icon} size={20} color={item.color} />
                   </View>
@@ -282,7 +288,13 @@ export default function ProfileScreen() {
             <View style={styles.menuSection}>
               <Text style={styles.menuSectionTitle}>Settings</Text>
               {menuItems.slice(5).map((item, index) => (
-                <TouchableOpacity accessibilityLabel={item.title} accessibilityRole="button" key={index} style={styles.menuItem}>
+                <TouchableOpacity
+                  accessibilityLabel={item.title}
+                  accessibilityRole="button"
+                  key={index}
+                  style={styles.menuItem}
+                  onPress={() => (item.route ? router.push(item.route) : null)}
+                >
                   <View style={[styles.menuIcon, { backgroundColor: item.color + "20" }]}>
                     <Ionicons name={item.icon} size={20} color={item.color} />
                   </View>
