@@ -7,6 +7,7 @@ type RawExtra = {
   appEnv?: string;
   sentryDsn?: string;
   easProjectId?: string;
+  universalLinkHost?: string;
 };
 
 const extra = (Constants.expoConfig?.extra ?? {}) as RawExtra;
@@ -38,6 +39,7 @@ export const Config = {
   appEnv: normalizeAppEnv(extra.appEnv),
   sentryDsn: extra.sentryDsn?.trim() || null,
   easProjectId: extra.easProjectId?.trim() || null,
+  universalLinkHost: extra.universalLinkHost?.trim() || null,
 } as const;
 
 export const isProduction = Config.appEnv === "production";

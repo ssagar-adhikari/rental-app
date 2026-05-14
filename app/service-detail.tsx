@@ -5,7 +5,10 @@ import {
   Animated,
   Dimensions,
   Image,
+  Linking,
+  Platform,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -14,6 +17,7 @@ import {
 import MapView from "react-native-maps/lib/MapView";
 import Marker from "react-native-maps/lib/MapMarker";
 import { PROVIDER_GOOGLE } from "react-native-maps/lib/ProviderConstants";
+import { Config } from "../constants/config";
 import { Colors, Radius, Shadows, Spacing, TouchTarget, Typography } from "../constants/theme";
 import { useAuth } from "../context/AuthContext";
 import { useListings } from "../context/ListingsContext";
@@ -343,7 +347,28 @@ export default function ServiceDetailScreen() {
             </TouchableOpacity>
 
             <View style={styles.heroRightActions}>
-              <TouchableOpacity accessibilityLabel="Share listing" accessibilityRole="button" style={styles.circleButton} onPress={selectionHaptic}>
+              <TouchableOpacity
+                accessibilityLabel="Share listing"
+                accessibilityRole="button"
+                style={styles.circleButton}
+                onPress={async () => {
+                  if (!detailListing) {
+                    return;
+                  }
+                  selectionHaptic();
+                  const url = Config.universalLinkHost && detailListing.slug
+                    ? `https://${Config.universalLinkHost}/listings/${detailListing.slug}`
+                    : null;
+                  const message = url
+                    ? `${detailListing.title}\n${url}`
+                    : `Check out ${detailListing.title} on Rental App.`;
+                  try {
+                    await Share.share(url ? { message, url, title: detailListing.title } : { message, title: detailListing.title });
+                  } catch {
+                    // User dismissed or platform refused — no-op.
+                  }
+                }}
+              >
                 <Ionicons name="share-social-outline" size={20} color={COLORS.text} />
               </TouchableOpacity>
               <TouchableOpacity
@@ -497,7 +522,32 @@ export default function ServiceDetailScreen() {
               <Text style={styles.mapAddress}>{displayLocation}</Text>
             </View>
             {mapRegion ? (
-              <TouchableOpacity accessibilityLabel="Get directions" accessibilityRole="button" style={styles.directionsBtn} onPress={selectionHaptic}>
+              <TouchableOpacity
+                accessibilityLabel="Get directions"
+                accessibilityRole="button"
+                style={styles.directionsBtn}
+                onPress={async () => {
+                  if (!mapRegion) {
+                    return;
+                  }
+                  selectionHaptic();
+                  const { latitude, longitude } = mapRegion;
+                  const label = encodeURIComponent(service?.title ?? "Listing");
+                  // Native maps deep links: Apple Maps for iOS, Google Maps
+                  // for Android, web fallback otherwise.
+                  const url = Platform.select({
+                    ios: `https://maps.apple.com/?q=${label}&ll=${latitude},${longitude}`,
+                    android: `geo:${latitude},${longitude}?q=${latitude},${longitude}(${label})`,
+                    default: `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`,
+                  });
+                  try {
+                    await Linking.openURL(url!);
+                  } catch {
+                    // Fall back to Google Maps web if the native scheme fails.
+                    Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`).catch(() => null);
+                  }
+                }}
+              >
                 <Ionicons name="navigate" size={17} color={COLORS.primary} />
                 <Text style={styles.directionsBtnText}>Directions</Text>
               </TouchableOpacity>

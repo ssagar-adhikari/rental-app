@@ -115,6 +115,7 @@ const config: ExpoConfig = {
     appEnv: process.env.EXPO_PUBLIC_APP_ENV ?? "development",
     sentryDsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
     easProjectId: process.env.EXPO_PUBLIC_EAS_PROJECT_ID,
+    universalLinkHost: process.env.EXPO_PUBLIC_UNIVERSAL_LINK_HOST,
   },
 };
 
