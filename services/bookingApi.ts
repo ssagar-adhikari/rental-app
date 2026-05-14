@@ -73,4 +73,20 @@ export const bookingApi = {
       token,
     });
   },
+
+  customerBookings(token: string, params: BookingQueryParams = {}) {
+    return apiRequest<PaginatedBookings>(`/customer/bookings${buildBookingQuery({ per_page: 20, ...params })}`, { token });
+  },
+
+  showCustomerBooking(id: number, token: string) {
+    return apiRequest<ApiBooking>(`/customer/bookings/${id}`, { token });
+  },
+
+  cancelCustomerBooking(id: number, token: string, reason = "Cancelled by customer") {
+    return apiRequest<ApiBooking>(`/customer/bookings/${id}/cancel`, {
+      method: "POST",
+      body: { reason },
+      token,
+    });
+  },
 };

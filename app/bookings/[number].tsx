@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams, type Href } from "expo-router";
 import { useEffect, useState } from "react";
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { AppHeader } from "@/components/AppHeader";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
@@ -9,6 +9,7 @@ import { LoadingState } from "@/components/LoadingState";
 import { Screen } from "@/components/Screen";
 import { Colors, Radius, Spacing, Typography } from "@/constants/theme";
 import { useAuth } from "@/context/AuthContext";
+import { useCancelCustomerBooking } from "@/hooks/queries/customer-bookings";
 import { ApiError } from "@/services/apiClient";
 import { bookingApi } from "@/services/bookingApi";
 import type { ApiBooking, BookingStatus } from "@/types/rental";
@@ -44,6 +45,7 @@ export default function BookingByNumberScreen() {
   const [booking, setBooking] = useState<ApiBooking | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loadingBooking, setLoadingBooking] = useState(true);
+  const cancelBooking = useCancelCustomerBooking();
 
   useEffect(() => {
     let cancelled = false;
@@ -197,12 +199,53 @@ export default function BookingByNumberScreen() {
           </TouchableOpacity>
         ) : null}
 
-        {!isVendor ? (
+        {!isVendor && (booking.status === "pending" || booking.status === "confirmed") ? (
+          <TouchableOpacity
+            accessibilityLabel="Cancel this booking"
+            accessibilityRole="button"
+            accessibilityState={{ disabled: cancelBooking.isPending, busy: cancelBooking.isPending }}
+            activeOpacity={0.85}
+            disabled={cancelBooking.isPending}
+            onPress={() => {
+              Alert.alert(
+                "Cancel this booking?",
+                "Cancellation may incur a penalty per the listing's rules.",
+                [
+                  { text: "Keep it", style: "cancel" },
+                  {
+                    text: "Cancel booking",
+                    style: "destructive",
+                    onPress: async () => {
+                      try {
+                        const updated = await cancelBooking.mutateAsync({ id: booking.id });
+                        setBooking(updated);
+                      } catch (exception) {
+                        Alert.alert("Cancellation failed", exception instanceof Error ? exception.message : "Try again.");
+                      }
+                    },
+                  },
+                ],
+              );
+            }}
+            style={styles.cancelButton}
+          >
+            {cancelBooking.isPending ? (
+              <ActivityIndicator color={Colors.light.danger} />
+            ) : (
+              <>
+                <Ionicons color={Colors.light.danger} name="close-circle-outline" size={19} />
+                <Text style={styles.cancelButtonText}>Cancel booking</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        ) : null}
+
+        {!isVendor && booking.status !== "pending" && booking.status !== "confirmed" ? (
           <EmptyState
             variant="inline"
             icon="information-circle-outline"
             title="Need to change something?"
-            description="Message the vendor or contact support to update or cancel this booking."
+            description="Message the vendor for changes to this booking."
             action={{
               label: "Open inbox",
               icon: "chatbubbles-outline",
@@ -330,6 +373,22 @@ const styles = StyleSheet.create({
   },
   primaryButtonText: {
     color: "white",
+    ...Typography.bodyStrong,
+    fontWeight: "900",
+  },
+  cancelButton: {
+    alignItems: "center",
+    backgroundColor: Colors.light.dangerSoft,
+    borderRadius: Radius.lg,
+    flexDirection: "row",
+    gap: Spacing.sm,
+    justifyContent: "center",
+    marginHorizontal: Spacing.xl,
+    marginTop: Spacing.xl,
+    minHeight: 54,
+  },
+  cancelButtonText: {
+    color: Colors.light.danger,
     ...Typography.bodyStrong,
     fontWeight: "900",
   },

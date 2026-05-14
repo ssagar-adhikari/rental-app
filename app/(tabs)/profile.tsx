@@ -19,7 +19,7 @@ const menuItems = [
   { icon: "chatbubbles-outline", title: "Messages", color: "#16a085", route: "/inbox" as Href },
   { icon: "notifications-outline", title: "Notifications", color: "#f39c12", route: "/notifications" as Href },
   { icon: "location-outline", title: "Saved Locations", color: "#27ae60", route: null },
-  { icon: "time-outline", title: "Booking History", color: "#9b59b6", route: null },
+  { icon: "time-outline", title: "Booking History", color: "#9b59b6", route: "/my-bookings" as Href },
   { icon: "wallet-outline", title: "Payment Methods", color: "#1abc9c", route: null },
   { icon: "phone-portrait-outline", title: "Devices", color: "#34495e", route: "/devices" as Href },
   { icon: "shield-checkmark-outline", title: "Privacy & Security", color: "#34495e", route: null },
