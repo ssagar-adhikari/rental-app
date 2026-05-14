@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter, type Href } from "expo-router";
+import { useLocalSearchParams, useRouter, type Href } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
-import { FlatList, Image, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Alert, FlatList, Image, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { AppHeader } from "@/components/AppHeader";
 import { Screen } from "@/components/Screen";
 import { SectionHeader } from "@/components/SectionHeader";
@@ -10,6 +10,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useCategories } from "@/context/CategoriesContext";
 import { useListings } from "@/context/ListingsContext";
 import { useFavoriteIds, useToggleFavorite } from "@/hooks/queries/favorites";
+import { useCreateSavedSearch } from "@/hooks/queries/saved-searches";
 import { mapApiListingToRentalListing } from "@/services/listingApi";
 import type { ListingSortKey } from "@/utils/listingFilters";
 import { filterAndSortListings } from "@/utils/listingFilters";
@@ -40,11 +41,13 @@ const ratingOptions = [
 
 export default function SearchScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ applySearchFilters?: string | string[]; applySearchId?: string | string[] }>();
   const { token } = useAuth();
   const { hasMoreListings, listings, loadingMore, loadMoreListings, publicError, refreshListings, refreshing } = useListings();
   const { categories } = useCategories();
   const favoriteIds = useFavoriteIds();
   const toggleFavorite = useToggleFavorite();
+  const createSavedSearch = useCreateSavedSearch();
 
   function onToggleFavorite(listingId: number) {
     if (!token) {
@@ -64,6 +67,7 @@ export default function SearchScreen() {
   const [minPrice, setMinPrice] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
   const [minRating, setMinRating] = useState<number | null>(null);
+  const [lastAppliedSavedSearchId, setLastAppliedSavedSearchId] = useState<string | null>(null);
   const parsedMinPrice = Number(minPrice);
   const parsedMaxPrice = Number(maxPrice);
   const filteredListings = useMemo(
@@ -88,6 +92,77 @@ export default function SearchScreen() {
   useEffect(() => {
     readRecentSearches().then(setRecentSearches);
   }, []);
+
+  // Hydrate filter state when arriving via "Apply" from /saved-searches.
+  // Guard on applySearchId so it only runs once per id — otherwise re-renders
+  // with the same URL would clobber any edits the user makes after applying.
+  useEffect(() => {
+    const idParam = Array.isArray(params.applySearchId) ? params.applySearchId[0] : params.applySearchId;
+    const filtersParam = Array.isArray(params.applySearchFilters) ? params.applySearchFilters[0] : params.applySearchFilters;
+
+    if (!idParam || !filtersParam || idParam === lastAppliedSavedSearchId) {
+      return;
+    }
+
+    try {
+      const decoded = JSON.parse(decodeURIComponent(filtersParam)) as Record<string, unknown>;
+      if (typeof decoded.searchText === "string") setSearchText(decoded.searchText);
+      if (typeof decoded.selectedCategoryId === "number") setSelectedCategoryId(decoded.selectedCategoryId);
+      if (typeof decoded.selectedType === "string") setSelectedType(decoded.selectedType as ListingType | "all");
+      if (typeof decoded.sortBy === "string") setSortBy(decoded.sortBy as ListingSortKey);
+      if (typeof decoded.cityFilter === "string") setCityFilter(decoded.cityFilter);
+      if (typeof decoded.minPrice === "string") setMinPrice(decoded.minPrice);
+      if (typeof decoded.maxPrice === "string") setMaxPrice(decoded.maxPrice);
+      if (typeof decoded.minRating === "number") setMinRating(decoded.minRating);
+      if (decoded.minRating === null) setMinRating(null);
+      setLastAppliedSavedSearchId(idParam);
+    } catch {
+      // Malformed payload — ignore. The user can re-save the search.
+    }
+  }, [params.applySearchId, params.applySearchFilters, lastAppliedSavedSearchId]);
+
+  async function saveCurrentSearch() {
+    if (!token) {
+      router.push("/login" as Href);
+      return;
+    }
+
+    const name = describeCurrentSearch();
+    const filters: Record<string, unknown> = {
+      searchText,
+      selectedCategoryId,
+      selectedType,
+      sortBy,
+      cityFilter,
+      minPrice,
+      maxPrice,
+      minRating,
+    };
+
+    try {
+      await createSavedSearch.mutateAsync({ name, filters });
+      Alert.alert("Saved", `Search "${name}" added to your saved searches.`);
+    } catch (error) {
+      Alert.alert("Couldn't save", error instanceof Error ? error.message : "Try again.");
+    }
+  }
+
+  function describeCurrentSearch(): string {
+    const parts: string[] = [];
+
+    if (searchText) parts.push(`"${searchText}"`);
+    if (cityFilter) parts.push(cityFilter);
+    if (selectedType && selectedType !== "all") parts.push(selectedType);
+    if (minPrice || maxPrice) parts.push(`${minPrice || "0"}–${maxPrice || "∞"}`);
+    if (minRating) parts.push(`${minRating}★+`);
+
+    if (parts.length === 0) {
+      const date = new Date();
+      return `Saved ${date.toLocaleDateString()}`;
+    }
+
+    return parts.join(" • ").slice(0, 120);
+  }
 
   async function applySearch(term: string) {
     setSearchText(term);
@@ -220,6 +295,32 @@ export default function SearchScreen() {
             setMaxPrice("");
             setMinRating(null);
           }} />
+
+          {hasFilters ? (
+            <View style={styles.savedSearchRow}>
+              <TouchableOpacity
+                accessibilityLabel="Save this search"
+                accessibilityRole="button"
+                accessibilityState={{ disabled: createSavedSearch.isPending }}
+                activeOpacity={0.85}
+                disabled={createSavedSearch.isPending}
+                onPress={saveCurrentSearch}
+                style={styles.savedSearchButton}
+              >
+                <Ionicons color={Colors.light.primary} name="bookmark-outline" size={16} />
+                <Text style={styles.savedSearchButtonText}>{createSavedSearch.isPending ? "Saving..." : "Save this search"}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                accessibilityLabel="View saved searches"
+                accessibilityRole="button"
+                activeOpacity={0.85}
+                onPress={() => router.push("/saved-searches" as Href)}
+                style={styles.savedSearchLink}
+              >
+                <Text style={styles.savedSearchLinkText}>View saved</Text>
+              </TouchableOpacity>
+            </View>
+          ) : null}
 
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
             {typeOptions.map((option) => {
@@ -495,6 +596,36 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
     paddingRight: Spacing.xl,
     paddingBottom: Spacing.sm,
+  },
+  savedSearchRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: Spacing.md,
+    marginTop: Spacing.md,
+  },
+  savedSearchButton: {
+    alignItems: "center",
+    backgroundColor: Colors.light.surfaceMuted,
+    borderColor: "#DDE4FF",
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 8,
+  },
+  savedSearchButtonText: {
+    color: Colors.light.primary,
+    ...Typography.label,
+    fontWeight: "900",
+  },
+  savedSearchLink: {
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 6,
+  },
+  savedSearchLinkText: {
+    color: Colors.light.muted,
+    ...Typography.eyebrow,
   },
   filterChip: {
     backgroundColor: Colors.light.surface,

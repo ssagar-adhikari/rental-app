@@ -92,6 +92,7 @@ export default function RootLayout() {
                           <Stack.Screen name="forgot-password" />
                           <Stack.Screen name="reset-password" />
                           <Stack.Screen name="favorites" />
+                          <Stack.Screen name="saved-searches" />
                           <Stack.Screen name="book" />
                           <Stack.Screen name="listings/[slug]" />
                           <Stack.Screen name="bookings/[number]" />
