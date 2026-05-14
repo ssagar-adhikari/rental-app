@@ -97,6 +97,7 @@ export default function RootLayout() {
                           <Stack.Screen name="inbox" />
                           <Stack.Screen name="conversations/[id]" />
                           <Stack.Screen name="devices" />
+                          <Stack.Screen name="notifications" />
                           <Stack.Screen name="listings/[slug]" />
                           <Stack.Screen name="bookings/[number]" />
                           <Stack.Screen name="email/verify/[id]/[hash]" />
