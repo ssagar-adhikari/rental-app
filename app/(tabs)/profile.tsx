@@ -1,11 +1,12 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router, type Href } from "expo-router";
 import { useState } from "react";
-import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Alert, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { AppHeader } from "@/components/AppHeader";
 import { Screen } from "@/components/Screen";
 import { Colors, Radius, Shadows, Spacing, Typography } from "@/constants/theme";
 import { useAuth } from "@/context/AuthContext";
+import { accountApi } from "@/services/accountApi";
 import { ApiError } from "@/services/authApi";
 import type { UserRole } from "@/types/auth";
 import { getPostAuthRoute, getRoleRoute, hasMultipleAppRoles, type AppRole } from "@/utils/authRoutes";
@@ -41,10 +42,42 @@ function formatRoleSummary(roles: UserRole[]) {
 }
 
 export default function ProfileScreen() {
-  const { activeRole, user, loading, logout, addRole, selectRole, enableTwoFactor, disableTwoFactor } = useAuth();
+  const { activeRole, user, token, loading, logout, addRole, selectRole, enableTwoFactor, disableTwoFactor } = useAuth();
   const [securityBusy, setSecurityBusy] = useState(false);
   const [roleBusy, setRoleBusy] = useState<AppRole | null>(null);
   const [roleError, setRoleError] = useState<string | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+
+  async function performAccountDeletion() {
+    if (!token) {
+      return;
+    }
+
+    setDeleteBusy(true);
+
+    try {
+      await accountApi.requestDeletion(null, token);
+      await logout();
+      router.replace("/(tabs)" as Href);
+    } catch (exception) {
+      setDeleteBusy(false);
+      Alert.alert(
+        "Deletion request failed",
+        exception instanceof ApiError ? exception.message : "Unable to submit deletion request.",
+      );
+    }
+  }
+
+  function confirmAccountDeletion() {
+    Alert.alert(
+      "Delete your account?",
+      "This will anonymize your profile and sign you out. Your booking history is preserved for the other party but no longer linked to you. This cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Delete", style: "destructive", onPress: performAccountDeletion },
+      ],
+    );
+  }
 
   async function toggleTwoFactor() {
     setSecurityBusy(true);
@@ -307,6 +340,19 @@ export default function ProfileScreen() {
             <TouchableOpacity accessibilityLabel="Log out" accessibilityRole="button" style={styles.logoutBtn} onPress={logout}>
               <Ionicons name="log-out-outline" size={22} color="#e74c3c" />
               <Text style={styles.logoutText}>Log Out</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              accessibilityLabel="Delete account"
+              accessibilityRole="button"
+              accessibilityState={{ disabled: deleteBusy, busy: deleteBusy }}
+              activeOpacity={0.85}
+              disabled={deleteBusy}
+              style={[styles.deleteBtn, deleteBusy && styles.deleteBtnDisabled]}
+              onPress={confirmAccountDeletion}
+            >
+              <Ionicons name="trash-outline" size={18} color={Colors.light.danger} />
+              <Text style={styles.deleteText}>{deleteBusy ? "Submitting..." : "Delete account"}</Text>
             </TouchableOpacity>
           </>
         ) : null}
@@ -585,6 +631,23 @@ const styles = StyleSheet.create({
   logoutText: {
     color: Colors.light.danger,
     ...Typography.cardTitle,
+    fontWeight: "900",
+  },
+  deleteBtn: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: Spacing.sm,
+    justifyContent: "center",
+    marginHorizontal: Spacing.xl,
+    marginTop: Spacing.md,
+    paddingVertical: Spacing.md,
+  },
+  deleteBtnDisabled: {
+    opacity: 0.6,
+  },
+  deleteText: {
+    color: Colors.light.danger,
+    ...Typography.label,
     fontWeight: "900",
   },
   versionText: {
