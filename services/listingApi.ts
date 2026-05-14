@@ -358,4 +358,57 @@ export const listingApi = {
       token,
     });
   },
+
+  availability(id: number, body: AvailabilityCheckBody) {
+    return apiRequest<AvailabilityResult>(`/listings/${id}/availability`, {
+      method: "POST",
+      body,
+    });
+  },
+
+  quote(id: number, body: QuoteRequestBody) {
+    return apiRequest<QuoteResult>(`/listings/${id}/quote`, {
+      method: "POST",
+      body,
+    });
+  },
+};
+
+export type AvailabilityCheckBody = {
+  start_at: string;
+  end_at: string;
+  rentable_unit_id?: number | null;
+  quantity?: number;
+  guest_count?: number;
+};
+
+export type AvailabilityResult = {
+  available: boolean;
+  reason?: string | null;
+  requested_quantity?: number;
+  reserved_quantity?: number;
+  remaining_quantity?: number;
+  capacity?: number;
+};
+
+export type QuoteRequestBody = AvailabilityCheckBody & {
+  context?: Record<string, unknown>;
+};
+
+export type QuoteLine = {
+  pricing_rule_id: number;
+  label: string;
+  rule_type: string;
+  billing_unit: string | null;
+  amount: number;
+};
+
+export type QuoteResult = {
+  currency: string;
+  duration_minutes: number;
+  quantity: number;
+  guest_count: number;
+  subtotal_amount: number;
+  total_amount: number;
+  lines: QuoteLine[];
 };

@@ -536,7 +536,22 @@ export default function ServiceDetailScreen() {
         <TouchableOpacity accessibilityLabel="Message listing owner" accessibilityRole="button" style={styles.messageBtn} onPress={selectionHaptic}>
           <Ionicons name="chatbubble-outline" size={20} color={COLORS.primary} />
         </TouchableOpacity>
-        <TouchableOpacity accessibilityLabel="Book this listing" accessibilityRole="button" style={styles.bookBtn} onPress={lightImpactHaptic}>
+        <TouchableOpacity
+          accessibilityLabel="Book this listing"
+          accessibilityRole="button"
+          style={styles.bookBtn}
+          onPress={() => {
+            lightImpactHaptic();
+            if (!detailListing) {
+              return;
+            }
+            if (!token) {
+              router.push("/login" as Href);
+              return;
+            }
+            router.push(`/book?listingId=${detailListing.id}` as Href);
+          }}
+        >
           <Text style={styles.bookBtnText}>Book Now</Text>
         </TouchableOpacity>
       </View>

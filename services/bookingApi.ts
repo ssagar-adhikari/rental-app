@@ -35,6 +35,16 @@ function buildBookingQuery(params: BookingQueryParams = {}) {
   return query ? `?${query}` : "";
 }
 
+export type CreateBookingBody = {
+  listing_id: number;
+  rentable_unit_id?: number | null;
+  start_at: string;
+  end_at: string;
+  quantity?: number;
+  guest_count?: number;
+  notes?: string | null;
+};
+
 export const bookingApi = {
   vendorBookings(token: string, params: BookingQueryParams = {}) {
     return apiRequest<PaginatedBookings>(`/vendor/bookings${buildBookingQuery({ per_page: 20, ...params })}`, { token });
@@ -54,5 +64,13 @@ export const bookingApi = {
 
   showByNumber(bookingNumber: string, token: string) {
     return apiRequest<ApiBooking>(`/bookings/by-number/${encodeURIComponent(bookingNumber)}`, { token });
+  },
+
+  createCustomerBooking(body: CreateBookingBody, token: string) {
+    return apiRequest<ApiBooking>("/customer/bookings", {
+      method: "POST",
+      body,
+      token,
+    });
   },
 };
