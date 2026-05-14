@@ -16,6 +16,7 @@ const menuItems = [
   { icon: "person-outline", title: "Edit Profile", color: Colors.light.primary, route: null },
   { icon: "heart-outline", title: "Favorites", color: "#e74c3c", route: "/favorites" as Href },
   { icon: "bookmark-outline", title: "Saved Searches", color: Colors.light.primary, route: "/saved-searches" as Href },
+  { icon: "chatbubbles-outline", title: "Messages", color: "#16a085", route: "/inbox" as Href },
   { icon: "notifications-outline", title: "Notifications", color: "#f39c12", route: null },
   { icon: "location-outline", title: "Saved Locations", color: "#27ae60", route: null },
   { icon: "time-outline", title: "Booking History", color: "#9b59b6", route: null },

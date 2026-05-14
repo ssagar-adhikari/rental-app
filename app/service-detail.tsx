@@ -17,6 +17,7 @@ import { PROVIDER_GOOGLE } from "react-native-maps/lib/ProviderConstants";
 import { Colors, Radius, Shadows, Spacing, TouchTarget, Typography } from "../constants/theme";
 import { useAuth } from "../context/AuthContext";
 import { useListings } from "../context/ListingsContext";
+import { useStartConversation } from "../hooks/queries/conversations";
 import { useFavoriteIds, useToggleFavorite } from "../hooks/queries/favorites";
 import { getListingImage, mapApiListingToRentalListing } from "../services/listingApi";
 import type { ApiListing, IconName, ListingLocation, ListingStatus, ListingType } from "../types/rental";
@@ -185,6 +186,7 @@ export default function ServiceDetailScreen() {
   const { listings, loadListing } = useListings();
   const favoriteIds = useFavoriteIds();
   const toggleFavorite = useToggleFavorite();
+  const startConversation = useStartConversation();
   const selectedId = Number(Array.isArray(serviceId) ? serviceId[0] : serviceId);
   const cachedListing = listings.find((item) => item.id === selectedId);
   const [detailListing, setDetailListing] = useState<ApiListing | null>(cachedListing ?? null);
@@ -533,7 +535,34 @@ export default function ServiceDetailScreen() {
           <Text style={styles.bottomPriceAmount}>{priceAmount}</Text>
           <Text style={styles.bottomPriceUnit}>{priceUnit ? `/${priceUnit}` : ""}</Text>
         </View>
-        <TouchableOpacity accessibilityLabel="Message listing owner" accessibilityRole="button" style={styles.messageBtn} onPress={selectionHaptic}>
+        <TouchableOpacity
+          accessibilityLabel="Message listing owner"
+          accessibilityRole="button"
+          accessibilityState={{ disabled: startConversation.isPending, busy: startConversation.isPending }}
+          disabled={startConversation.isPending}
+          style={styles.messageBtn}
+          onPress={async () => {
+            selectionHaptic();
+            if (!detailListing || !detailListing.owner) {
+              return;
+            }
+            if (!token) {
+              router.push("/login" as Href);
+              return;
+            }
+            try {
+              const conversation = await startConversation.mutateAsync({
+                recipient_id: detailListing.owner.id,
+                listing_id: detailListing.id,
+                body: `Hi! I'm interested in "${detailListing.title}". Is it still available?`,
+              });
+              router.push(`/conversations/${conversation.id}` as Href);
+            } catch {
+              // Error surfaces in the mutation state; conversation flow has
+              // its own retry path in /inbox.
+            }
+          }}
+        >
           <Ionicons name="chatbubble-outline" size={20} color={COLORS.primary} />
         </TouchableOpacity>
         <TouchableOpacity
